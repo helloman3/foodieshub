@@ -1,48 +1,167 @@
-# FoodieHub POS
+# 🍽️ FoodieHub POS — Modern Restaurant & Bar Management System
 
-FoodieHub is a responsive restaurant point-of-sale prototype for managing floor seating, orders, kitchen tickets, billing, and inventory.
+**FoodieHub** is a high-performance, responsive Point-of-Sale (POS) and Restaurant Operating System tailored for restaurants, cafes, and bars. Built with **React**, **TypeScript**, and **Tailwind CSS**, it features real-time local network synchronization, 1-page thermal KOT/BOT and bill printing, CSV bulk import/export, and complete role-based workflow isolation.
 
-## Run Locally
+---
 
-**Prerequisites:** Node.js 18+
+## ✨ Key Features
 
+- **🌐 Real-Time Multi-Device LAN Sync**:
+  - Connect mobile phones, tablets, kitchen displays (KDS), and cashiers over your restaurant's Wi-Fi network.
+  - Device-isolated login sessions: each device maintains its own logged-in user (Waiter, Chef, Accountant, or Admin) while sharing real-time floor plan tables, active carts, kitchen tickets, and stock counts.
+  - Automatic atomic state backups stored locally in `data/foodiehub-state.json` and `data/backups/`.
 
-1. Install dependencies: `npm install`
-2. Start the development server: `npm run dev`
-3. Open `http://localhost:3000`
+- **🖨️ Precision 1-Page Thermal Printing**:
+  - Centered thermal output strictly formatted on a single page for **58mm (2-inch)**, **80mm (3-inch)**, and standard desktop paper sizes.
+  - Dedicated **KOT (Kitchen Order Ticket)** for culinary items and **BOT (Bar Order Ticket)** for drinks and spirits.
+  - Final customer billing with customizable restaurant branding, address, phone, PAN number, custom bill prefixes (e.g., `FH-`), greetings, and payment QR codes.
 
-## Local network mode
+- **📊 CSV Bulk Hub (Import & Export)**:
+  - Quickly upload entire spreadsheet menus, inventory ingredient supplies, and dish preparation recipes.
+  - Download built-in sample `.csv` templates.
+  - Automatic category and section detection (`Kitchen` vs. `Bar`).
 
-For shared restaurant data, run the FoodieHub LAN server on one always-on Windows computer connected to the restaurant Wi-Fi. That computer stores the shared state in `data/foodiehub-state.json`; phones and other computers use the browser only.
+- **👥 Role-Based Access Control**:
+  - **Admin**: Full control center, revenue analytics, staff account management, restaurant branding, inventory configuration, and billing reviews.
+  - **Waiter**: Floor seating, table selection, dynamic menu ordering, item customizations/notes, and KOT/BOT submission.
+  - **Chef**: Kitchen Display System (KDS) with live timers, order progression (`Pending` ➔ `Cooking` ➔ `Ready` ➔ `Served`), and sound notifications.
+  - **Accountant**: Active dining table billing, discount application (fixed amount or percentage), cash tender/change computation, and receipt printing.
 
-On the host computer:
+- **📱 Offline-Ready Progressive Web App (PWA)**:
+  - Installable directly to Windows desktop, Android, iOS, or iPadOS home screen.
+  - Network-first service worker caching with instant disaster recovery.
 
-1. Install Node.js 18 or newer.
-2. Copy the project folder to the host computer.
-3. Open PowerShell in the project folder and run `npm install`.
-4. Run `npm run build` once.
-5. Start the shared server with `npm run start`.
-6. Find the host computer's local IPv4 address with `ipconfig`.
+---
 
-On each client phone or Windows computer connected to the same Wi-Fi, open `http://HOST-IP:3000`, replacing `HOST-IP` with the host address, for example `http://192.168.1.50:3000`. The PWA can then be installed from the browser. Client devices do not need Node.js or the source code.
+## 🚀 Quick Start Guide
 
-Use the URLs as follows: `http://localhost:3000` is only for the computer running the server; `http://192.168.0.101:3000` is for devices on the same local Wi-Fi; and `http://100.123.69.24:3000` is for devices that can reach the host through its Tailscale network. Do not open `localhost` on a phone expecting it to reach the host computer. All clients must point to the same host computer and one running `npm start` process so they share `data/foodiehub-state.json`.
+### Prerequisites
+* [Node.js 18+](https://nodejs.org/) installed on the host computer.
 
-The browser keeps a local cache and queues state while the Wi-Fi/server is unavailable. When the connection returns, it uploads the local state automatically. The LAN server is the shared source of truth when connected. Allow Node.js through the host computer's private-network firewall when Windows asks.
+---
 
-Shared state writes are version-checked. If two devices edit the same data at once, the stale write is rejected instead of overwriting the newer server value; the device keeps its local pending value and shows a sync-conflict warning. The server also keeps rotating recovery copies in `data/backups/` before replacing the main state file.
+### Option 1: 1-Click Startup (Windows)
+Double-click the **`start-foodiehub.bat`** file located in the root directory. This will automatically install dependencies, build the production bundle, and launch the server.
 
-When a conflict appears, choose `Keep server` to discard the local pending version or `Retry local` to attempt the local version against the newest server version. If the other device changes the same key again, the conflict is shown again rather than silently overwritten.
+---
 
-This is a local-network prototype. It does not yet provide production authentication, encrypted transport, audit history, or multi-user conflict resolution; do not expose port 3000 to the public internet.
+### Option 2: Command Line Setup
 
-## Initial administrator setup
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/helloman3/foodieshub.git
+   cd foodieshub
+   ```
 
-Copy `.env.example` to `.env.local` and set `VITE_INITIAL_ADMIN_TOKEN` and `VITE_INITIAL_ADMIN_PIN` before the first login. The first account must be an Admin; that administrator can then create the rest of the staff accounts from Administration.
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
 
-The current client persists data in browser storage so the workflow can be developed end-to-end. Move authentication, staff PIN verification, and restaurant data to a server API before production deployment.
+3. **Development Mode (Single Machine):**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Quality checks
+4. **Production / Multi-Device Server Mode:**
+   ```bash
+   npm run build
+   npm start
+   ```
 
-- `npm run lint` — TypeScript check
-- `npm run build` — production build
+---
+
+## 📱 Multi-Device Wi-Fi / LAN Setup
+
+To connect phones, tablets, and other laptops in your restaurant:
+
+1. **Run the Host Server**: Start the server on your primary restaurant PC using `npm start`.
+2. **Find Host IP**: Open Command Prompt / PowerShell on the host PC and type:
+   ```cmd
+   ipconfig
+   ```
+   Look for the **IPv4 Address** (e.g., `192.168.1.50`).
+3. **Connect Client Devices**: On any phone or tablet connected to the **same Wi-Fi network**, open your mobile browser and go to:
+   ```text
+   http://192.168.1.50:3000
+   ```
+4. **Install as App (Optional)**: Click **"Install App"** in the browser menu to add FoodieHub to your device's home screen.
+
+> **Note**: Each device logs into its own account independently. The primary PC can be logged in as Admin/Accountant while waiters use their own phones on the floor.
+
+---
+
+## 🔑 Default Sign-In Accounts
+
+The system starts with a pre-configured Administrator account:
+
+| Role | Default Name | Default PIN | Permissions |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `Admin` | **`1234`** | Full System Access, Staff Management, Revenue Reports, CSV Hub |
+
+*Additional Waiter, Chef, Accountant, and Admin accounts can be created with custom 4-digit PINs directly from the **Administration ➔ Staff & Access** tab.*
+
+---
+
+## 📋 CSV Import Formats
+
+You can import data from the **Administration ➔ CSV Bulk Hub** tab using standard `.csv` files:
+
+### 1. Menu & Bar Catalog (`foodiehub_menu.csv`)
+```csv
+Name,Price,Category,Section,Description,Image
+"Chicken Steam Momo",220,"Momo","Kitchen","Steamed dumplings with spicy chutney","https://..."
+"Virgin Mojito",180,"Bar Mocktails","Bar","Fresh mint leaves, lime and soda","https://..."
+```
+
+### 2. Inventory & Supplies (`foodiehub_inventory.csv`)
+```csv
+Name,Category,CurrentStock,Threshold,Unit,UnitCost
+"Boneless Chicken","Meats",15,5,"kg",450
+"Cooking Oil","Pantry",20,5,"L",220
+```
+
+### 3. Dish Recipes (`foodiehub_recipes.csv`)
+```csv
+DishName,Section,IngredientName,Quantity,Unit,Instructions
+"Chicken Steam Momo","Kitchen","Boneless Chicken",0.08,"kg","Mince and mix with spices"
+"Chicken Steam Momo","Kitchen","Momo Dough Flour",0.05,"kg","Knead dough and wrap"
+```
+
+---
+
+## 🛠️ Project Structure
+
+```text
+foodieshub/
+├── data/                  # Auto-generated runtime database & backups (git-ignored)
+├── public/                # Web manifest, icons, service worker & PWA assets
+├── src/
+│   ├── assets/            # High-resolution dish category photography
+│   ├── components/        # Modals, screens (Admin, Billing, FloorPlan, Kitchen, Menu, Login)
+│   ├── hooks/             # usePersistentState (LAN WebSocket / HTTP sync)
+│   ├── utils/             # CSV parser, generator, and thermal print formatters
+│   ├── App.tsx            # Main application root state & print snapshots
+│   ├── constants.ts       # Floor plan defaults, taxes, and order computation
+│   ├── menuCatalog.ts     # Default FoodieHub catalogue
+│   └── types.ts           # TypeScript domain definitions
+├── server.cjs             # Multi-device HTTP / API sync server
+├── start-foodiehub.bat    # Windows 1-click startup script
+├── package.json           # Project manifest & scripts
+└── vite.config.ts         # Vite build configuration
+```
+
+---
+
+## 📜 Available Scripts
+
+- `npm run dev` — Starts the local development server with Hot Module Replacement.
+- `npm run build` — Compiles and optimizes TypeScript / React assets into `dist/`.
+- `npm run preview` — Locally preview the production build.
+- `npm start` — Runs the production multi-device LAN synchronization server.
+
+---
+
+## 📄 License
+MIT License. Free for commercial and private restaurant use.
