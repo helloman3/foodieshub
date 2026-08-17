@@ -23,6 +23,7 @@ export function usePersistentState<T>(key: string, initialValue: T) {
       return initialValue;
     }
   });
+
   const valueRef = useRef(value);
   const hydratedRef = useRef(false);
   const valueEffectMountedRef = useRef(false);
@@ -34,12 +35,13 @@ export function usePersistentState<T>(key: string, initialValue: T) {
   const serverVersionRef = useRef(0);
   const syncLatestRef = useRef<(() => Promise<void>) | null>(null);
 
+  // Keep ref synchronized and update localStorage
   useEffect(() => {
     valueRef.current = value;
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch {
-      // Persistence is best-effort until the API layer is connected.
+      // LocalStorage is best-effort fallback
     }
   }, [key, value]);
 
@@ -62,8 +64,9 @@ export function usePersistentState<T>(key: string, initialValue: T) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: valueBeingSynced, expectedVersion: serverVersionRef.current }),
         });
+
         if (response.ok) {
-          const payload = await response.json() as StateResponse<T>;
+          const payload = (await response.json()) as StateResponse<T>;
           lastServerUpdateRef.current = payload.updatedAt ?? Date.now();
           serverVersionRef.current = payload.version ?? serverVersionRef.current + 1;
           if (valueRef.current === valueBeingSynced) {
@@ -73,27 +76,42 @@ export function usePersistentState<T>(key: string, initialValue: T) {
             syncQueuedRef.current = true;
           }
         } else if (response.status === 409) {
-          const conflict = await response.json() as { current?: StateResponse<T> };
+          const conflict = (await response.json()) as { current?: StateResponse<T> };
           const current = conflict.current ?? { value: null, updatedAt: 0, version: 0 };
           lastServerUpdateRef.current = current.updatedAt ?? 0;
           serverVersionRef.current = current.version ?? 0;
+
+          // If the conflict happened on an unmodified initial load or client has null, auto-adopt server
+          if (!hydratedRef.current || JSON.stringify(valueBeingSynced) === JSON.stringify(initialValue)) {
+            if (current.value !== undefined && current.value !== null) {
+              applyingServerValueRef.current = true;
+              setValue(current.value);
+              dirtyRef.current = false;
+              syncQueuedRef.current = false;
+              return;
+            }
+          }
+
           try {
-            localStorage.setItem(`foodiehub.sync-conflict.${key}`, JSON.stringify({
-              localValue: valueBeingSynced,
-              serverValue: current.value,
-              serverUpdatedAt: current.updatedAt ?? 0,
-              serverVersion: current.version ?? 0,
-              detectedAt: new Date().toISOString(),
-            }));
+            localStorage.setItem(
+              `foodiehub.sync-conflict.${key}`,
+              JSON.stringify({
+                localValue: valueBeingSynced,
+                serverValue: current.value,
+                serverUpdatedAt: current.updatedAt ?? 0,
+                serverVersion: current.version ?? 0,
+                detectedAt: new Date().toISOString(),
+              })
+            );
           } catch {
-            // Keep the in-memory local value if browser storage is unavailable.
+            // Keep in memory
           }
           dirtyRef.current = false;
           syncQueuedRef.current = false;
           window.dispatchEvent(new CustomEvent('foodiehub-sync-conflict', { detail: { key } }));
         }
       } catch {
-        // Keep the dirty flag set so the next poll retries when the server returns.
+        // Retry on next poll
       } finally {
         syncingRef.current = false;
         if (!cancelled && syncQueuedRef.current && dirtyRef.current) {
@@ -110,16 +128,17 @@ export function usePersistentState<T>(key: string, initialValue: T) {
           window.dispatchEvent(new CustomEvent('foodiehub-sync-conflict', { detail: { key } }));
         }
       } catch {
-        // Browser storage may be unavailable.
+        // Storage unavailable
       }
     };
+
     const handleConflictResolution = (event: Event) => {
       const detail = (event as CustomEvent<{ key?: string; resolution?: 'server' | 'local' }>).detail;
       if (detail?.key !== key || !detail.resolution) return;
       let conflict: StoredConflict<T> | null = null;
       try {
         const raw = localStorage.getItem(conflictStorageKey);
-        conflict = raw ? JSON.parse(raw) as StoredConflict<T> : null;
+        conflict = raw ? (JSON.parse(raw) as StoredConflict<T>) : null;
       } catch {
         conflict = null;
       }
@@ -142,39 +161,47 @@ export function usePersistentState<T>(key: string, initialValue: T) {
       try {
         localStorage.removeItem(conflictStorageKey);
       } catch {
-        // Best effort cleanup.
+        // Cleanup
       }
       window.dispatchEvent(new CustomEvent('foodiehub-sync-conflict-resolved', { detail: { key } }));
     };
+
     window.addEventListener('foodiehub-sync-resolve', handleConflictResolution);
     const conflictAnnouncementId = window.setTimeout(announceStoredConflict, 0);
 
+    // Initial server hydration
     const hydrate = async () => {
       try {
         const response = await fetch(`/api/state/${encodeURIComponent(key)}`);
         if (!response.ok) return;
-        const payload = await response.json() as StateResponse<T>;
-        lastServerUpdateRef.current = payload.updatedAt ?? 0;
-        serverVersionRef.current = payload.version ?? 0;
+        const payload = (await response.json()) as StateResponse<T>;
+        const serverVer = payload.version ?? 0;
+        const serverUpd = payload.updatedAt ?? 0;
 
         if (payload.value !== undefined && payload.value !== null) {
-          if (!dirtyRef.current && !cancelled) {
-            applyingServerValueRef.current = true;
-            setValue(payload.value);
-          }
+          lastServerUpdateRef.current = serverUpd;
+          serverVersionRef.current = serverVer;
+          applyingServerValueRef.current = true;
+          setValue(payload.value);
+          dirtyRef.current = false;
         } else if (!cancelled) {
+          // Server is empty for this key; seed initial value to server
           dirtyRef.current = true;
         }
       } catch {
-        // Local storage remains the offline source until the LAN server returns.
+        // Offline / fallback to localStorage
       } finally {
         if (cancelled) return;
         hydratedRef.current = true;
-        if (dirtyRef.current) void syncLatest();
+        if (dirtyRef.current) {
+          void syncLatest();
+        }
       }
     };
 
     void hydrate();
+
+    // High-frequency polling (every 1.5 seconds) for multi-device sync
     const pollId = window.setInterval(async () => {
       if (cancelled) return;
       if (dirtyRef.current) {
@@ -184,22 +211,21 @@ export function usePersistentState<T>(key: string, initialValue: T) {
       try {
         const response = await fetch(`/api/state/${encodeURIComponent(key)}`);
         if (!response.ok) return;
-        const payload = await response.json() as StateResponse<T>;
+        const payload = (await response.json()) as StateResponse<T>;
         const updatedAt = payload.updatedAt ?? 0;
         const serverVersion = payload.version ?? serverVersionRef.current;
-        if (payload.value !== undefined && payload.value !== null && (updatedAt > lastServerUpdateRef.current || serverVersion > serverVersionRef.current)) {
-          lastServerUpdateRef.current = updatedAt;
-          serverVersionRef.current = serverVersion;
-          applyingServerValueRef.current = true;
-          setValue(payload.value);
-        } else if (payload.value === undefined || payload.value === null) {
-          dirtyRef.current = true;
-          void syncLatest();
+        if (payload.value !== undefined && payload.value !== null) {
+          if (updatedAt > lastServerUpdateRef.current || serverVersion > serverVersionRef.current) {
+            lastServerUpdateRef.current = updatedAt;
+            serverVersionRef.current = serverVersion;
+            applyingServerValueRef.current = true;
+            setValue(payload.value);
+          }
         }
       } catch {
-        // The app continues using its local cache while Wi-Fi is unavailable.
+        // Offline / error fallback
       }
-    }, 2000);
+    }, 1500);
 
     return () => {
       cancelled = true;
@@ -210,6 +236,7 @@ export function usePersistentState<T>(key: string, initialValue: T) {
     };
   }, [key]);
 
+  // Sync state changes triggered by user/app updates
   useEffect(() => {
     if (!valueEffectMountedRef.current) {
       valueEffectMountedRef.current = true;
@@ -217,10 +244,6 @@ export function usePersistentState<T>(key: string, initialValue: T) {
     }
     if (applyingServerValueRef.current) {
       applyingServerValueRef.current = false;
-      return;
-    }
-    if (!hydratedRef.current) {
-      dirtyRef.current = true;
       return;
     }
     dirtyRef.current = true;

@@ -289,7 +289,7 @@ export default function AdminScreen({
     event.preventDefault();
     if (!staffName.trim() || staffPin.length !== 4) return;
     updateStaff([
-      ...staff,
+      ...safeStaff,
       {
         id: makeId('staff'),
         name: staffName.trim(),
@@ -304,7 +304,7 @@ export default function AdminScreen({
 
   const confirmStaffRemoval = () => {
     if (!pendingStaffRemoval) return;
-    updateStaff(staff.filter((item) => item.id !== pendingStaffRemoval.id));
+    updateStaff(safeStaff.filter((item) => item.id !== pendingStaffRemoval.id));
     setPendingStaffRemoval(null);
   };
 

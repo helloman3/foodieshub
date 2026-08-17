@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foodiehub-pos-v8';
+const CACHE_NAME = 'foodiehub-pos-v9';
 const APP_SHELL = [
   '/',
   '/index.html',

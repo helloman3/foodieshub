@@ -60,16 +60,20 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
   };
 
   const effectiveStaff = staff && staff.length > 0 ? staff : [
-    { id: 'staff-admin-01', name: 'Alex', role: 'Admin' as Role, pin: '1234', active: true, createdAt: '2026-08-16T00:00:00.000Z' },
-    { id: 'staff-waiter-01', name: 'Ram', role: 'Waiter' as Role, pin: '1111', active: true, createdAt: '2026-08-16T00:00:00.000Z' },
-    { id: 'staff-chef-01', name: 'Sita', role: 'Chef' as Role, pin: '2222', active: true, createdAt: '2026-08-16T00:00:00.000Z' },
-    { id: 'staff-accountant-01', name: 'Hari', role: 'Accountant' as Role, pin: '3333', active: true, createdAt: '2026-08-16T00:00:00.000Z' },
+    { id: 'staff-admin-01', name: 'Admin', role: 'Admin' as Role, pin: '1234', active: true, createdAt: '2026-08-16T00:00:00.000Z' },
   ];
+
+  const roleStaffList = effectiveStaff.filter((m) => m.active && m.role === selectedRole);
 
   const handleRoleChange = (role: Role) => {
     setSelectedRole(role);
     setPin('');
     setErrorMessage('');
+    // If there is only one staff member for this role, auto-select their name
+    const matching = effectiveStaff.filter((m) => m.active && m.role === role);
+    if (matching.length === 1) {
+      setStaffName(matching[0].name);
+    }
   };
 
   const handleKeyPress = (num: string) => {
@@ -95,7 +99,12 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
   const handleQuickSignIn = (event: React.FormEvent) => {
     event.preventDefault();
     setErrorMessage('');
-    const account = effectiveStaff.find((member) => member.active && (normalizeStaffName(member.name) === normalizeStaffName(staffName) || member.pin === quickPin) && member.pin === quickPin);
+    const account = effectiveStaff.find(
+      (member) =>
+        member.active &&
+        (normalizeStaffName(member.name) === normalizeStaffName(staffName) || member.pin === quickPin) &&
+        member.pin === quickPin
+    );
     if (!account) {
       setErrorMessage('Staff name or PIN is incorrect.');
       setQuickPin('');
@@ -109,43 +118,47 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
 
   const verifyPin = (enteredPin: string) => {
     const finalName = staffName.trim();
-    if (!finalName) {
-      setErrorMessage('Enter your staff name before signing in.');
-      setPin('');
-      return;
-    }
 
-    const account = effectiveStaff.find(
-      (member) =>
-        member.active &&
-        member.role === selectedRole &&
-        (normalizeStaffName(member.name) === normalizeStaffName(finalName) || member.pin === enteredPin) &&
-        member.pin === enteredPin
+    // Find accounts matching the selected role and PIN
+    const matchingRoleAccounts = effectiveStaff.filter(
+      (member) => member.active && member.role === selectedRole && member.pin === enteredPin
     );
 
+    let account: StaffAccount | undefined;
+    if (finalName) {
+      account = matchingRoleAccounts.find(
+        (member) => normalizeStaffName(member.name) === normalizeStaffName(finalName)
+      ) || matchingRoleAccounts[0];
+    } else {
+      account = matchingRoleAccounts[0];
+    }
+
     if (!account && setupToken && initialAdminToken && setupToken.trim() === initialAdminToken && enteredPin === initialAdminPin && selectedRole === 'Admin') {
-      const newAdmin: StaffAccount = { id: `staff-${Date.now()}`, name: finalName, role: 'Admin', pin: enteredPin, active: true, createdAt: new Date().toISOString() };
+      const adminName = finalName || 'Admin';
+      const newAdmin: StaffAccount = { id: `staff-${Date.now()}`, name: adminName, role: 'Admin', pin: enteredPin, active: true, createdAt: new Date().toISOString() };
       onCreateStaff(newAdmin);
-      rememberStaffName(finalName);
-      setSuccessMessage(`Signing in ${finalName}...`);
-      scheduleLogin({ name: finalName, role: 'Admin', avatar: getProfileAvatar(finalName) }, 600);
+      rememberStaffName(adminName);
+      setSuccessMessage(`Signing in ${adminName}...`);
+      scheduleLogin({ name: adminName, role: 'Admin', avatar: getProfileAvatar(adminName) }, 600);
       return;
     }
 
     if (!account) {
-      setErrorMessage('Staff name, role, or PIN is incorrect.');
+      setErrorMessage(finalName ? 'Staff name, role, or PIN is incorrect.' : 'Incorrect PIN for selected role.');
       setPin('');
       return;
     }
 
-    rememberStaffName(finalName);
+    const resolvedName = account.name;
+    rememberStaffName(resolvedName);
+    setStaffName(resolvedName);
 
     if (enteredPin.length >= 4) {
-      setSuccessMessage(`Signing in ${finalName}...`);
+      setSuccessMessage(`Signing in ${resolvedName}...`);
       scheduleLogin({
-        name: finalName,
-        role: selectedRole,
-        avatar: getProfileAvatar(finalName),
+        name: resolvedName,
+        role: account.role,
+        avatar: getProfileAvatar(resolvedName),
       }, 500);
     }
   };
@@ -265,6 +278,30 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
                 className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-on-surface outline-none transition-all"
               />
             </div>
+
+            {/* Quick staff chips for the selected role */}
+            {roleStaffList.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-0.5">
+                {roleStaffList.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setStaffName(m.name);
+                      setPin('');
+                      setErrorMessage('');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      normalizeStaffName(staffName) === normalizeStaffName(m.name)
+                        ? 'bg-primary text-on-primary shadow-xs'
+                        : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
+                    }`}
+                  >
+                    <span>{m.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Feedback Messages */}
