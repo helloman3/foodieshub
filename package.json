@@ -1,0 +1,29 @@
+{
+  "name": "foodieshub-pos",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "start": "node server.cjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "node -e \"const fs=require('fs'); for (const p of ['dist','server.js']) { if (fs.existsSync(p)) fs.rmSync(p,{recursive:true,force:true}); }\"",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "vite": "^6.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "autoprefixer": "^10.4.21",
+    "esbuild": "^0.25.0",
+    "playwright": "^1.62.1",
+    "tailwindcss": "^4.1.14",
+    "typescript": "~5.8.2"
+  }
+}

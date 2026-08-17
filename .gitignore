@@ -1,0 +1,14 @@
+node_modules/
+build/
+dist/
+coverage/
+data/
+scratch/
+.playwright-cli/
+.DS_Store
+*.log
+.env*
+!.env.example
+.vscode/
+.idea/
+

@@ -1,0 +1,6 @@
+{
+  "name": "FoodieHub",
+  "description": "A professional restaurant management app including staff login, floor plan table management, waiter order placement, billing, and inventory tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
