@@ -62,7 +62,7 @@ interface AdminScreenProps {
   onPrintReceipt?: (receipt: ReceiptSnapshot) => void;
 }
 
-type AdminTab = 'overview' | 'restaurant' | 'billing_review' | 'csv_import' | 'staff' | 'tables' | 'inventory' | 'menu' | 'recipes' | 'payment' | 'notifications';
+type AdminTab = 'overview' | 'restaurant' | 'csv_import' | 'staff' | 'tables' | 'inventory' | 'menu' | 'recipes' | 'payment' | 'notifications';
 
 const makeId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -433,11 +433,10 @@ export default function AdminScreen({
   const tabs: { id: AdminTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
     { id: 'restaurant', label: 'Restaurant & Bill', icon: 'storefront' },
-    { id: 'billing_review', label: 'Billing Review', icon: 'point_of_sale' },
     { id: 'csv_import', label: 'CSV Bulk Hub', icon: 'upload_file' },
     { id: 'staff', label: 'Staff & Access', icon: 'group_add' },
     { id: 'tables', label: 'Tables', icon: 'table_restaurant' },
-    { id: 'inventory', icon: 'inventory_2', label: 'Inventory' },
+    { id: 'inventory', icon: 'inventory_2', label: 'Inventory & Stock' },
     { id: 'menu', label: 'Menu & Bar', icon: 'restaurant_menu' },
     { id: 'recipes', label: 'Recipes', icon: 'menu_book' },
     { id: 'payment', label: 'Payment QR', icon: 'qr_code_2' },
@@ -462,27 +461,23 @@ export default function AdminScreen({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 pb-2 mb-6 sm:flex sm:overflow-x-auto scrollbar-hide">
+      {/* Admin Tab Navigation Bar */}
+      <div className="flex flex-wrap gap-2 pb-2 mb-6">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`min-w-0 justify-center px-2 sm:px-4 py-2.5 rounded-full text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer ${
+            className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === tab.id
                 ? 'bg-primary text-on-primary shadow-xs'
-                : 'bg-surface-container text-on-surface-variant hover:bg-secondary-container'
+                : 'bg-surface-container text-on-surface-variant hover:bg-secondary-container hover:text-on-surface'
             }`}
           >
             <span className="material-symbols-outlined text-base">{tab.icon}</span>
-            <span className="truncate">{tab.label}</span>
+            <span>{tab.label}</span>
             {tab.id === 'notifications' && unreadCount > 0 && (
               <span className="rounded-full bg-error text-white px-1.5 py-0.5 text-[10px]">{unreadCount}</span>
-            )}
-            {tab.id === 'billing_review' && activeOrders.length > 0 && (
-              <span className="rounded-full bg-primary-container text-on-primary-container px-1.5 py-0.5 text-[10px]">
-                {activeOrders.length}
-              </span>
             )}
           </button>
         ))}
@@ -678,92 +673,6 @@ export default function AdminScreen({
             </div>
           </section>
         </div>
-      )}
-
-      {/* 3. BILLING REVIEW TAB */}
-      {activeTab === 'billing_review' && (
-        <section className="bg-surface-container-lowest border border-border-light rounded-2xl p-6 shadow-xs flex flex-col gap-4">
-          <div className="flex justify-between items-center border-b border-border-light pb-3">
-            <div>
-              <h2 className="font-display font-bold text-lg text-on-surface">Active Dining Bills Review</h2>
-              <p className="text-xs text-on-surface-variant mt-1">
-                Admin review of active table bills, live totals, and print guest checks.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-primary bg-primary-container px-3 py-1 rounded-full">
-              {safeTables.filter((t) => safeOrders.some((o) => o?.tableId === t.id && o?.status !== 'paid')).length} Tables Billing
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {safeTables.map((table) => {
-              const tableOrders = safeOrders.filter((o) => o?.tableId === table.id && o?.status !== 'paid');
-              if (tableOrders.length === 0) return null;
-
-              const totalItems = tableOrders.reduce((sum, o) => sum + (o?.items || []).reduce((s, it) => s + (it?.quantity || 0), 0), 0);
-              const subtotal = tableOrders.reduce((sum, o) => sum + (Number(o?.subtotal) || 0), 0);
-              const total = tableOrders.reduce((sum, o) => sum + (Number(o?.total) || 0), 0);
-
-              return (
-                <div key={table.id} className="bg-surface-container-low p-4 rounded-xl border border-border-light flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex justify-between items-center">
-                      <h3 className="font-bold text-sm text-on-surface">{table.name}</h3>
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-bold text-[10px] rounded">
-                        {tableOrders.length} Tickets
-                      </span>
-                    </div>
-                    <p className="text-xs text-on-surface-variant mt-1">{totalItems} dishes ordered</p>
-                  </div>
-
-                  <div className="pt-2 border-t border-dashed border-border-light flex justify-between items-center">
-                    <div>
-                      <span className="text-[10px] text-on-surface-variant block">Bill Total</span>
-                      <strong className="text-sm font-black text-primary">Rs. {total.toFixed(2)}</strong>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onPrintReceipt) {
-                          const snapshot: ReceiptSnapshot = {
-                            restaurantName: restName,
-                            restaurantAddress: restAddress,
-                            restaurantPhone: restPhone,
-                            restaurantPanNo: restPan,
-                            billGreeting: restGreeting,
-                            printedAt: new Date().toLocaleString(),
-                            billNumber: `${restPrefix}PREVIEW`,
-                            orderNumber: tableOrders[0]?.id || 'ORD-01',
-                            kotNumber: tableOrders[0]?.kotNumber,
-                            botNumber: tableOrders[0]?.botNumber,
-                            tableName: table.name,
-                            cashierName: currentUser.name,
-                            serverName: tableOrders[0]?.serverName || 'Staff',
-                            paymentMethod: 'Guest Check (Review)',
-                            items: tableOrders.flatMap(o => (o?.items || []).map(it => ({
-                              name: safeMenuItems.find(m => m.id === it.menuItemId)?.name || 'Dish',
-                              quantity: it.quantity,
-                              rate: safeMenuItems.find(m => m.id === it.menuItemId)?.price || 0,
-                              amount: (safeMenuItems.find(m => m.id === it.menuItemId)?.price || 0) * it.quantity,
-                            }))),
-                            subtotal,
-                            discount: 0,
-                            total,
-                          };
-                          onPrintReceipt(snapshot);
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-bold flex items-center gap-1 shadow-2xs hover:bg-surface-tint cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">print</span>
-                      <span>Print Check</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
       )}
 
       {/* 3. CSV BULK HUB TAB */}
@@ -1123,10 +1032,32 @@ export default function AdminScreen({
             <h2 className="font-display font-bold text-lg">Add inventory item</h2>
             <input value={inventoryName} onChange={(e) => setInventoryName(e.target.value)} placeholder="Ingredient or supply" className="input-field" required />
             <div className="grid grid-cols-2 gap-2">
-              <input value={inventoryStock} onChange={(e) => setInventoryStock(e.target.value)} type="number" min="0" step="0.01" placeholder="Current stock" className="input-field" required />
-              <input value={inventoryUnit} onChange={(e) => setInventoryUnit(e.target.value)} placeholder="Unit" className="input-field" required />
+              <input 
+                value={inventoryStock} 
+                onFocus={(e) => { if (e.target.value === '0') setInventoryStock(''); }}
+                onBlur={(e) => { if (!e.target.value.trim()) setInventoryStock('0'); }}
+                onChange={(e) => setInventoryStock(e.target.value)} 
+                type="number" 
+                min="0" 
+                step="any" 
+                placeholder="0" 
+                className="input-field" 
+                required 
+              />
+              <input value={inventoryUnit} onChange={(e) => setInventoryUnit(e.target.value)} placeholder="Unit (e.g. kg, pcs)" className="input-field" required />
             </div>
-            <input value={inventoryThreshold} onChange={(e) => setInventoryThreshold(e.target.value)} type="number" min="0" step="0.01" placeholder="Reorder threshold" className="input-field" required />
+            <input 
+              value={inventoryThreshold} 
+              onFocus={(e) => { if (e.target.value === '0') setInventoryThreshold(''); }}
+              onBlur={(e) => { if (!e.target.value.trim()) setInventoryThreshold('0'); }}
+              onChange={(e) => setInventoryThreshold(e.target.value)} 
+              type="number" 
+              min="0" 
+              step="any" 
+              placeholder="Reorder threshold" 
+              className="input-field" 
+              required 
+            />
             <button type="submit" className="primary-action cursor-pointer">Add inventory item</button>
           </form>
         </div>

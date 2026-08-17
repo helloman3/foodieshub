@@ -90,8 +90,8 @@ export default function Sidebar({ currentUser, activeScreen, onNavigate, onLogou
           </button>
         )}
 
-        {/* Kitchen View (For Chef, Waiter, and Admin; hidden for Accountant) */}
-        {!isAccountant && (
+        {/* Kitchen View (For Chef and Admin ONLY; hidden for Waiter and Accountant) */}
+        {(isChef || isAdmin) && (
           <button
             type="button"
             onClick={() => onNavigate('kitchen')}
@@ -102,7 +102,7 @@ export default function Sidebar({ currentUser, activeScreen, onNavigate, onLogou
             }`}
           >
             <span className={`material-symbols-outlined ${activeScreen === 'kitchen' ? 'fill' : ''}`}>skillet</span>
-            <span>{isWaiter ? 'Ready for Service' : 'Kitchen Queue'}</span>
+            <span>Kitchen Queue</span>
           </button>
         )}
 

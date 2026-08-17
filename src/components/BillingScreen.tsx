@@ -484,9 +484,9 @@ export default function BillingScreen({
               </div>
 
               {kitchenInProgress && (
-                <div className="mb-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-2xl text-xs text-amber-950 shadow-2xs flex items-center gap-2.5">
+                <div className="mb-6 bg-amber-50 border border-amber-300 p-3.5 rounded-2xl text-xs text-amber-950 shadow-2xs flex items-center gap-2.5 font-semibold">
                   <span className="material-symbols-outlined text-amber-700 text-lg">skillet</span>
-                  <span>Dishes are currently being prepared in kitchen/bar. You can print guest previews or complete payment when ready.</span>
+                  <span>Kitchen in progress: Dishes are currently cooking in the kitchen. You can review or settle the bill when served.</span>
                 </div>
               )}
 

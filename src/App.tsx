@@ -426,7 +426,7 @@ export default function App() {
     if (currentUser?.role === 'Chef' && screen !== 'kitchen' && screen !== 'inventory') {
       return;
     }
-    if (screen === 'inventory' && currentUser?.role === 'Waiter') {
+    if (currentUser?.role === 'Waiter' && (screen === 'kitchen' || screen === 'inventory' || screen === 'admin')) {
       return;
     }
     if (screen === 'admin' && currentUser?.role !== 'Admin') {
@@ -1110,6 +1110,42 @@ export default function App() {
   const renderActiveScreen = () => {
     switch (activeScreen) {
       case 'floorplan':
+        if (currentUser.role === 'Accountant') {
+          return (
+            <BillingScreen
+              currentUser={currentUser}
+              tables={tables}
+              menuItems={menuItems}
+              activeTableId={activeTableId}
+              orders={orders}
+              restaurantInfo={restaurantInfo}
+              paymentQrs={paymentQrs}
+              onCompletePayment={handleCompletePayment}
+              onSelectTable={handleSelectTable}
+              onPrintReceipt={handlePrintReceipt}
+              onUpdateOrders={setOrders}
+            />
+          );
+        }
+        if (currentUser.role === 'Chef') {
+          return (
+            <KitchenScreen
+              currentUser={currentUser}
+              orders={orders}
+              menuItems={menuItems}
+              tables={tables}
+              onUpdateOrders={setOrders}
+              onUpdateTables={setTables}
+              onOrderServed={(tableId) => {
+                setActiveTableId(tableId);
+              }}
+              onCancelOrder={handleCancelOrder}
+              onNotify={(notification) => setNotifications((previous) => [notification, ...previous])}
+              highlightedOrderId={highlightedOrderId}
+              onPrintTicket={handlePrintTicket}
+            />
+          );
+        }
         return (
           <FloorPlanScreen
             tables={tables}
@@ -1123,6 +1159,23 @@ export default function App() {
           />
         );
       case 'menu':
+        if (currentUser.role === 'Accountant' || currentUser.role === 'Chef') {
+          return (
+            <BillingScreen
+              currentUser={currentUser}
+              tables={tables}
+              menuItems={menuItems}
+              activeTableId={activeTableId}
+              orders={orders}
+              restaurantInfo={restaurantInfo}
+              paymentQrs={paymentQrs}
+              onCompletePayment={handleCompletePayment}
+              onSelectTable={handleSelectTable}
+              onPrintReceipt={handlePrintReceipt}
+              onUpdateOrders={setOrders}
+            />
+          );
+        }
         return (
           <MenuScreen
             currentUser={currentUser}
@@ -1138,6 +1191,25 @@ export default function App() {
           />
         );
       case 'billing':
+        if (currentUser.role === 'Chef') {
+          return (
+            <KitchenScreen
+              currentUser={currentUser}
+              orders={orders}
+              menuItems={menuItems}
+              tables={tables}
+              onUpdateOrders={setOrders}
+              onUpdateTables={setTables}
+              onOrderServed={(tableId) => {
+                setActiveTableId(tableId);
+              }}
+              onCancelOrder={handleCancelOrder}
+              onNotify={(notification) => setNotifications((previous) => [notification, ...previous])}
+              highlightedOrderId={highlightedOrderId}
+              onPrintTicket={handlePrintTicket}
+            />
+          );
+        }
         return (
           <BillingScreen
             currentUser={currentUser}
@@ -1154,7 +1226,7 @@ export default function App() {
           />
         );
       case 'inventory':
-        if (currentUser.role === 'Waiter') {
+        if (currentUser.role === 'Waiter' || currentUser.role === 'Accountant') {
           return (
             <FloorPlanScreen
               tables={tables}
@@ -1177,6 +1249,20 @@ export default function App() {
           />
         );
       case 'kitchen':
+        if (currentUser.role === 'Waiter' || currentUser.role === 'Accountant') {
+          return (
+            <FloorPlanScreen
+              tables={tables}
+              orders={orders}
+              onUpdateTables={setTables}
+              onUpdateOrders={setOrders}
+              onNavigateToOrder={handleNavigateToOrder}
+              onNavigateToBilling={handleNavigateToBilling}
+              onNotify={(notification) => setNotifications((previous) => [notification, ...previous])}
+              highlightedTableId={highlightedTableId}
+            />
+          );
+        }
         return (
           <KitchenScreen
             currentUser={currentUser}
@@ -1361,8 +1447,8 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3 md:gap-4">
-            {/* Table context indicator bubble */}
-            {activeTableObj && (activeScreen === 'menu' || activeScreen === 'billing') && (
+            {/* Table context indicator bubble (for Waiter & Admin taking orders) */}
+            {activeTableObj && activeScreen === 'menu' && (currentUser.role === 'Waiter' || currentUser.role === 'Admin') && (
               <button
                 type="button"
                 onClick={() => setActiveScreen('floorplan')}

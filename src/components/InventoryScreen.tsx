@@ -21,26 +21,26 @@ export default function InventoryScreen({
   const [isRestockOpen, setIsRestockOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [amountToAdd, setAmountToAdd] = useState<number>(10);
+  const [amountToAdd, setAmountToAdd] = useState<string>('10');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   
   // States for adding a brand-new item
   const [isNewItemOpen, setIsNewItemOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState('Pantry');
-  const [newItemStock, setNewItemStock] = useState(20);
-  const [newItemThreshold, setNewItemThreshold] = useState(10);
+  const [newItemStock, setNewItemStock] = useState('0');
+  const [newItemThreshold, setNewItemThreshold] = useState('10');
   const [newItemUnit, setNewItemUnit] = useState('kg');
-  const [newItemCost, setNewItemCost] = useState(0);
+  const [newItemCost, setNewItemCost] = useState('0');
   const [newItemIcon, setNewItemIcon] = useState('inventory');
 
   // States for editing an item
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('');
-  const [editStock, setEditStock] = useState(0);
-  const [editThreshold, setEditThreshold] = useState(0);
+  const [editStock, setEditStock] = useState('0');
+  const [editThreshold, setEditThreshold] = useState('0');
   const [editUnit, setEditUnit] = useState('');
-  const [editCost, setEditCost] = useState(0);
+  const [editCost, setEditCost] = useState('0');
 
   // Helper to determine status
   const getItemStatus = (item: InventoryItem) => {
@@ -88,17 +88,18 @@ export default function InventoryScreen({
 
   const handleOpenRestock = (item: InventoryItem) => {
     setSelectedItem(item);
-    setAmountToAdd(item.unit === 'pcs' ? 50 : 10);
+    setAmountToAdd(item.unit === 'pcs' ? '50' : '10');
     setIsRestockOpen(true);
   };
 
   const handleConfirmRestock = () => {
     if (!selectedItem) return;
+    const addVal = Math.max(0.01, Number(amountToAdd) || 0);
     const updated = inventory.map(item => {
       if (item.id === selectedItem.id) {
         return {
           ...item,
-          currentStock: Number((item.currentStock + amountToAdd).toFixed(2)),
+          currentStock: Number((item.currentStock + addVal).toFixed(2)),
         };
       }
       return item;
@@ -112,10 +113,10 @@ export default function InventoryScreen({
     setSelectedItem(item);
     setEditName(item.name);
     setEditCategory(item.category);
-    setEditStock(item.currentStock);
-    setEditThreshold(item.threshold);
+    setEditStock(String(item.currentStock));
+    setEditThreshold(String(item.threshold));
     setEditUnit(item.unit);
-    setEditCost(item.unitCost ?? 0);
+    setEditCost(String(item.unitCost ?? 0));
     setIsEditOpen(true);
   };
 
@@ -127,10 +128,10 @@ export default function InventoryScreen({
           ...item,
           name: editName,
           category: editCategory,
-          currentStock: Number(editStock),
-          threshold: Number(editThreshold),
+          currentStock: Number(editStock) || 0,
+          threshold: Number(editThreshold) || 0,
           unit: editUnit,
-          unitCost: Number(editCost),
+          unitCost: Number(editCost) || 0,
         };
       }
       return item;
@@ -169,23 +170,23 @@ export default function InventoryScreen({
 
     const newItem: InventoryItem = {
       id: `inv-${Date.now()}`,
-      name: newItemName,
+      name: newItemName.trim(),
       category: newItemCategory,
-      currentStock: Number(newItemStock),
-      threshold: Number(newItemThreshold),
+      currentStock: Math.max(0, Number(newItemStock) || 0),
+      threshold: Math.max(0, Number(newItemThreshold) || 0),
       unit: newItemUnit,
-      unitCost: Number(newItemCost),
+      unitCost: Math.max(0, Number(newItemCost) || 0),
       icon: newItemIcon,
     };
 
     onUpdateInventory([...inventory, newItem]);
     setIsNewItemOpen(false);
-    // Reset
+    // Reset form
     setNewItemName('');
-    setNewItemStock(20);
-    setNewItemThreshold(10);
+    setNewItemStock('0');
+    setNewItemThreshold('10');
     setNewItemUnit('kg');
-    setNewItemCost(0);
+    setNewItemCost('0');
     setNewItemIcon('inventory');
   };
 
@@ -199,7 +200,13 @@ export default function InventoryScreen({
         </div>
         <button
           type="button"
-          onClick={() => setIsNewItemOpen(true)}
+          onClick={() => {
+            setNewItemName('');
+            setNewItemStock('0');
+            setNewItemThreshold('10');
+            setNewItemCost('0');
+            setIsNewItemOpen(true);
+          }}
           className="bg-primary text-on-primary font-semibold text-xs px-6 py-3 rounded-full flex items-center gap-2 hover:opacity-90 transition-all shadow-sm cursor-pointer whitespace-nowrap active:scale-95"
         >
           <span className="material-symbols-outlined text-sm">add</span>
@@ -218,251 +225,238 @@ export default function InventoryScreen({
               <p className="text-xs font-bold text-red-900">
                 {lowStockCount} {lowStockCount === 1 ? 'item is' : 'items are'} below the minimum stock threshold!
               </p>
-              <p className="text-[11px] text-red-700">Immediate restock recommended to prevent menu items from going out of stock.</p>
+              <p className="text-[11px] text-red-700 mt-0.5">
+                Check depleted ingredients below and restock before the next service rush.
+              </p>
             </div>
           </div>
-          <button
+          <button 
             type="button"
             onClick={() => setActiveCategory('Low Stock')}
-            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs shrink-0 cursor-pointer flex items-center gap-1.5"
+            className="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl transition-colors cursor-pointer shrink-0"
           >
-            <span className="material-symbols-outlined text-sm">filter_alt</span>
-            <span>View Below Min Stock ({lowStockCount})</span>
+            Review Critical Items
           </button>
         </div>
       )}
 
-      {/* Metric Cards Banner */}
-      <div id="inventory-metrics" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* Low Stock card */}
-        <div 
-          onClick={() => setActiveCategory('Low Stock')}
-          className="bg-surface-light border border-border-light rounded-2xl p-5 flex items-center gap-4 shadow-xs hover:-translate-y-0.5 cursor-pointer transition-all"
-        >
-          <div className="w-12 h-12 rounded-full bg-error-container text-on-error-container flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-lg">warning</span>
+      {/* Metric Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-surface-container-low p-4 rounded-2xl border border-border-light flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-2xl">category</span>
           </div>
           <div>
-            <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Low Stock Items</p>
-            <p className="text-2xl font-bold text-on-surface font-display mt-0.5">{lowStockCount}</p>
+            <p className="text-xs text-on-surface-variant font-semibold">Tracked Categories</p>
+            <p className="text-2xl font-bold font-display text-on-surface mt-0.5">{totalCategories}</p>
           </div>
         </div>
 
-        {/* Total Categories card */}
-        <div className="bg-surface-light border border-border-light rounded-2xl p-5 flex items-center gap-4 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-lg">category</span>
+        <div className="bg-surface-container-low p-4 rounded-2xl border border-border-light flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-2xl">inventory_2</span>
           </div>
           <div>
-            <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Total Categories</p>
-            <p className="text-2xl font-bold text-on-surface font-display mt-0.5">{totalCategories}</p>
+            <p className="text-xs text-on-surface-variant font-semibold">Low Stock Warnings</p>
+            <p className="text-2xl font-bold font-display text-red-600 mt-0.5">{lowStockCount}</p>
           </div>
         </div>
 
-        {/* Healthy Stock card */}
-        <div className="bg-surface-light border border-border-light rounded-2xl p-5 flex items-center gap-4 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-[#E7F2D8] text-primary flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-lg fill">check_circle</span>
+        <div className="bg-surface-container-low p-4 rounded-2xl border border-border-light flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#E7F2D8] text-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-2xl">verified</span>
           </div>
           <div>
-            <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Healthy Stock</p>
-            <p className="text-2xl font-bold text-on-surface font-display mt-0.5">{healthyStockCount}</p>
+            <p className="text-xs text-on-surface-variant font-semibold">Optimal Health Items</p>
+            <p className="text-2xl font-bold font-display text-primary mt-0.5">{healthyStockCount}</p>
           </div>
         </div>
       </div>
 
-      {/* Filters & Search Row */}
-      <div id="inventory-filters" className="flex flex-col md:flex-row justify-between gap-4 mb-6">
-        <div className="relative w-full md:w-96">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+      {/* Search & Category Filter Bar */}
+      <div className="bg-surface-container-lowest p-4 rounded-2xl border border-border-light shadow-2xs mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+        {/* Search Box */}
+        <div className="relative w-full md:w-80">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
           <input 
-            type="text"
+            type="text" 
+            placeholder="Search stock ingredient..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search ingredients, category..."
-            className="w-full bg-surface-container border border-transparent focus:border-primary rounded-full py-3 pl-12 pr-4 text-xs text-on-surface placeholder:text-on-surface-variant outline-none transition-colors"
+            className="w-full bg-surface-container-low border border-border-light rounded-xl pl-10 pr-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition-all font-medium"
           />
+          {searchQuery && (
+            <button 
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          )}
         </div>
-        
-        {/* Category filtering chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide shrink-0 snap-x">
-          {['All', ...inventoryOptions.categories, 'Low Stock'].map((cat) => {
-            const isSelected = activeCategory === cat;
-            let btnClass = 'bg-surface-container border-transparent text-on-surface-variant hover:bg-surface-container-high';
-            
-            if (isSelected) {
-              btnClass = 'bg-[#E7F2D8] text-primary border-primary';
-            } else if (cat === 'Low Stock') {
-              btnClass = 'bg-error-container text-on-error-container hover:bg-[#ffdfdb]';
-            }
 
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveCategory(cat)}
-                className={`snap-start shrink-0 border px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap flex items-center gap-1 cursor-pointer transition-all ${btnClass}`}
-              >
-                {cat === 'Low Stock' && <span className="material-symbols-outlined text-[14px]">warning</span>}
-                <span>{cat === 'All' ? 'All Items' : cat}</span>
-              </button>
-            );
-          })}
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-hide">
+          <button 
+            type="button"
+            onClick={() => setActiveCategory('All')}
+            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+              activeCategory === 'All' 
+                ? 'bg-primary text-on-primary font-bold shadow-xs' 
+                : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'
+            }`}
+          >
+            All Items ({inventory.length})
+          </button>
+          
+          {lowStockCount > 0 && (
+            <button 
+              type="button"
+              onClick={() => setActiveCategory('Low Stock')}
+              className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
+                activeCategory === 'Low Stock' 
+                  ? 'bg-red-600 text-white font-bold shadow-xs' 
+                  : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+              }`}
+            >
+              <span className="material-symbols-outlined text-xs">warning</span>
+              <span>Low Stock ({lowStockCount})</span>
+            </button>
+          )}
+
+          {categoriesList.map(cat => (
+            <button 
+              key={cat}
+              type="button"
+              onClick={() => setActiveCategory(cat)}
+              className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                activeCategory === cat 
+                  ? 'bg-primary text-on-primary font-bold shadow-xs' 
+                  : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Inventory Grid (Bento Style) */}
-      <div id="inventory-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredInventory.map((item) => {
-          const status = getItemStatus(item);
-          const percent = Math.min(100, Math.round((item.currentStock / (item.threshold * 2)) * 100));
+      {/* Main Stock Table Grid */}
+      <div className="bg-surface-container-lowest rounded-2xl border border-border-light shadow-sm overflow-hidden">
+        {filteredInventory.length === 0 ? (
+          <div className="p-12 text-center text-on-surface-variant flex flex-col items-center justify-center">
+            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">inventory</span>
+            <p className="text-sm font-semibold">No stock items match your filter criteria.</p>
+            <p className="text-xs mt-1">Try clearing your search query or add new ingredients.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse font-sans text-xs">
+              <thead>
+                <tr className="border-b border-border-light bg-surface-container-low text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
+                  <th className="py-3.5 px-4">Ingredient Name</th>
+                  <th className="py-3.5 px-4">Category</th>
+                  <th className="py-3.5 px-4">Current Stock</th>
+                  <th className="py-3.5 px-4">Min. Threshold</th>
+                  <th className="py-3.5 px-4">Stock Health</th>
+                  <th className="py-3.5 px-4">Est. Unit Cost</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-light text-on-surface">
+                {filteredInventory.map((item) => {
+                  const status = getItemStatus(item);
+                  const stockPercent = Math.min(100, Math.round((item.currentStock / (item.threshold * 2 || 1)) * 100));
 
-          return (
-            <div 
-              key={item.id}
-              className={`bg-surface-light border rounded-2xl p-5 relative overflow-hidden group hover:shadow-md transition-all duration-200 cursor-pointer ${
-                status.type === 'low' ? 'border-red-400 bg-red-50/20 ring-1 ring-red-400/30' : 'border-border-light'
-              }`}
-            >
-              {status.type === 'low' && (
-                <>
-                  <div className="absolute top-0 left-0 right-0 h-1.5 bg-red-600"></div>
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-red-100 rounded-bl-3xl -mr-8 -mt-8 flex items-end justify-start p-2.5 transition-transform group-hover:scale-110">
-                    <span className="material-symbols-outlined text-red-700 text-[18px]">warning</span>
-                  </div>
-                </>
-              )}
+                  return (
+                    <tr key={item.id} className="hover:bg-surface-container-low/60 transition-colors">
+                      {/* Name & Icon */}
+                      <td className="py-3 px-4 font-semibold">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary shrink-0">
+                            <span className="material-symbols-outlined text-base">{item.icon || 'inventory'}</span>
+                          </div>
+                          <div>
+                            <span className="font-bold text-on-surface">{item.name}</span>
+                            <span className="text-[10px] text-on-surface-variant block font-normal">ID: {item.id}</span>
+                          </div>
+                        </div>
+                      </td>
 
-              <div className="flex justify-between items-start mb-4 pt-1">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shadow-2xs ${
-                  status.type === 'low' ? 'bg-red-100 border-red-200' : 'bg-surface-container border-border-light'
-                }`}>
-                  <span className={`material-symbols-outlined text-xl ${status.type === 'low' ? 'text-red-700' : 'text-tertiary'}`}>{item.icon}</span>
-                </div>
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md border flex items-center gap-1.5 ${status.style}`}>
-                  {status.type === 'low' && <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse shrink-0"></span>}
-                  {status.label}
-                </span>
-              </div>
+                      {/* Category */}
+                      <td className="py-3 px-4">
+                        <span className="px-2.5 py-1 rounded-full bg-surface-container text-[11px] font-semibold text-on-surface-variant">
+                          {item.category}
+                        </span>
+                      </td>
 
-              <h3 className="text-sm font-bold text-on-surface mb-0.5 truncate">{item.name}</h3>
-              <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wide mb-3">{item.category}</p>
-              <p className="text-[11px] font-semibold text-on-surface-variant mb-3">Unit cost: Rs. {(item.unitCost ?? 0).toFixed(2)}</p>
+                      {/* Current Stock */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-sm font-extrabold text-on-surface">{item.currentStock}</span>
+                          <span className="text-[10px] text-on-surface-variant font-semibold">{item.unit}</span>
+                        </div>
+                      </td>
 
-              <div className={`rounded-xl p-3 flex flex-col gap-2 mb-4 border text-xs font-sans ${
-                status.type === 'low' ? 'bg-red-50/60 border-red-200' : 'bg-surface-container-low border-border-light'
-              }`}>
-                <div className="flex justify-between items-end">
-                  <div>
-                    <p className="text-[9px] text-outline uppercase tracking-wider mb-0.5 font-semibold">Current Stock</p>
-                    <p className={`text-base font-extrabold flex items-baseline gap-0.5 ${status.type === 'low' ? 'text-red-700 font-black' : 'text-on-surface'}`}>
-                      {item.currentStock} <span className="text-[10px] font-semibold text-on-surface-variant">{item.unit}</span>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] text-outline uppercase tracking-wider mb-0.5 font-semibold">Min Threshold</p>
-                    <p className="text-xs font-bold text-on-surface">{item.threshold} {item.unit}</p>
-                  </div>
-                </div>
+                      {/* Threshold */}
+                      <td className="py-3 px-4">
+                        <span className="text-xs text-on-surface-variant font-medium">
+                          {item.threshold} {item.unit}
+                        </span>
+                      </td>
 
-                {status.type === 'low' && (
-                  <div className="pt-2 border-t border-red-200/80 flex items-center justify-between text-[11px] font-bold text-red-800">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-red-600 text-sm">priority_high</span>
-                      Below Min Threshold
-                    </span>
-                    <span className="text-red-900 font-extrabold">
-                      -{Number((item.threshold - item.currentStock).toFixed(2))} {item.unit}
-                    </span>
-                  </div>
-                )}
-              </div>
+                      {/* Status Bar */}
+                      <td className="py-3 px-4">
+                        <div className="w-32">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded border ${status.style}`}>
+                              {status.label}
+                            </span>
+                            <span className="text-[10px] text-on-surface-variant font-bold">{stockPercent}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${status.barColor} transition-all duration-300`} 
+                              style={{ width: `${stockPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
 
-              {/* Quick Stepper Row */}
-              <div className="flex items-center justify-between gap-1 mb-3 bg-surface-container/60 p-1.5 rounded-xl border border-border-light text-[11px] font-bold">
-                <span className="text-[10px] text-on-surface-variant px-1 font-semibold">Quick Count:</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateInventory(inventory.map((inv) => inv.id === item.id ? { ...inv, currentStock: Math.max(0, Number((inv.currentStock - 1).toFixed(2))) } : inv));
-                    }}
-                    className="w-7 h-7 rounded-lg bg-white border border-border-light hover:bg-surface-container-high flex items-center justify-center text-on-surface cursor-pointer active:scale-95"
-                    title="-1"
-                  >
-                    -1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateInventory(inventory.map((inv) => inv.id === item.id ? { ...inv, currentStock: Number((inv.currentStock + 1).toFixed(2)) } : inv));
-                    }}
-                    className="w-7 h-7 rounded-lg bg-white border border-border-light hover:bg-surface-container-high flex items-center justify-center text-primary cursor-pointer active:scale-95"
-                    title="+1"
-                  >
-                    +1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateInventory(inventory.map((inv) => inv.id === item.id ? { ...inv, currentStock: Number((inv.currentStock + 5).toFixed(2)) } : inv));
-                    }}
-                    className="px-2 h-7 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary cursor-pointer active:scale-95 text-[10px]"
-                    title="+5"
-                  >
-                    +5
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateInventory(inventory.map((inv) => inv.id === item.id ? { ...inv, currentStock: Number((inv.currentStock + 10).toFixed(2)) } : inv));
-                    }}
-                    className="px-2 h-7 rounded-lg bg-primary text-white hover:bg-surface-tint flex items-center justify-center cursor-pointer active:scale-95 text-[10px]"
-                    title="+10"
-                  >
-                    +10
-                  </button>
-                </div>
-              </div>
+                      {/* Unit Cost */}
+                      <td className="py-3 px-4 font-semibold text-on-surface">
+                        {item.unitCost !== undefined && item.unitCost > 0 ? `Rs. ${item.unitCost.toFixed(2)}` : '—'}
+                      </td>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(item)}
-                  className="flex-1 bg-surface-container text-on-surface font-semibold text-xs py-2 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer active:scale-98"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleOpenRestock(item)}
-                  className={`flex-1 font-semibold text-xs py-2 rounded-lg transition-all cursor-pointer active:scale-98 text-center ${
-                    status.type === 'low' 
-                      ? 'bg-red-600 text-white hover:bg-red-700 shadow-xs' 
-                      : 'bg-surface-container text-primary hover:bg-secondary-container'
-                  }`}
-                >
-                  Restock
-                </button>
-              </div>
-            </div>
-          );
-        })}
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRestock(item)}
+                            className="bg-primary/10 hover:bg-primary text-primary hover:text-on-primary px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                            title="Quick Add Stock"
+                          >
+                            <span className="material-symbols-outlined text-sm">add_box</span>
+                            <span>Restock</span>
+                          </button>
 
-        {filteredInventory.length === 0 && (
-          <div className="col-span-full py-16 text-center text-on-surface-variant bg-surface-container-low/50 rounded-2xl border border-dashed border-border-light">
-            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">inventory_2</span>
-            <p className="text-sm font-medium">No ingredients in this filter category.</p>
-            <button 
-              onClick={() => { setSearchQuery(''); setActiveCategory('All'); }} 
-              className="mt-3 text-xs font-bold text-primary hover:underline cursor-pointer"
-            >
-              Reset Filters
-            </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(item)}
+                            className="p-1.5 hover:bg-surface-container rounded-lg text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+                            title="Edit Stock Properties"
+                          >
+                            <span className="material-symbols-outlined text-base">edit</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -470,18 +464,25 @@ export default function InventoryScreen({
       {/* RESTOCK MODAL */}
       {isRestockOpen && selectedItem && (
         <div id="restock-modal" className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => { setIsRestockOpen(false); setSelectedItem(null); }}>
-          <div className="bg-white rounded-2xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 shadow-xl border border-border-light relative animate-scale-up" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg font-bold text-on-surface mb-1">Restock Item</h3>
-            <p className="text-xs text-on-surface-variant mb-4">Adding stock for: <strong>{selectedItem.name}</strong></p>
-
-            <div className="bg-surface-container-low p-4 rounded-xl border border-border-light mb-6 flex justify-between items-center text-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-border-light relative animate-scale-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <span className="material-symbols-outlined">{selectedItem.icon || 'inventory'}</span>
+              </div>
               <div>
-                <p className="text-[9px] text-outline uppercase font-semibold">In Store</p>
+                <h3 className="font-display text-base font-bold text-on-surface leading-tight">Restock {selectedItem.name}</h3>
+                <p className="text-xs text-on-surface-variant">{selectedItem.category}</p>
+              </div>
+            </div>
+
+            <div className="bg-surface-container-low p-3.5 rounded-xl border border-border-light mb-4 flex justify-between items-center">
+              <div>
+                <p className="text-[9px] text-outline uppercase font-semibold">Current Stock</p>
                 <p className="text-sm font-bold text-on-surface">{selectedItem.currentStock} {selectedItem.unit}</p>
               </div>
               <div className="text-right">
                 <p className="text-[9px] text-outline uppercase font-semibold">Incoming Stock</p>
-                <p className="text-sm font-extrabold text-primary">+{amountToAdd} {selectedItem.unit}</p>
+                <p className="text-sm font-extrabold text-primary">+{amountToAdd || '0'} {selectedItem.unit}</p>
               </div>
             </div>
 
@@ -490,13 +491,17 @@ export default function InventoryScreen({
               <div className="flex gap-2">
                 <input
                   type="number"
+                  min="0.01"
+                  step="any"
                   value={amountToAdd}
-                  onChange={(e) => setAmountToAdd(Math.max(0.1, Number(e.target.value)))}
+                  onFocus={(e) => { if (e.target.value === '0' || e.target.value === '10') setAmountToAdd(''); }}
+                  onBlur={(e) => { if (!e.target.value.trim()) setAmountToAdd('10'); }}
+                  onChange={(e) => setAmountToAdd(e.target.value)}
                   className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary"
-                  step={selectedItem.unit === 'pcs' ? '1' : '0.1'}
+                  placeholder="Quantity"
                 />
                 <div className="flex gap-1 shrink-0">
-                  {[5, 10, 50].map(val => (
+                  {['5', '10', '50'].map(val => (
                     <button
                       key={val}
                       type="button"
@@ -573,24 +578,44 @@ export default function InventoryScreen({
                   <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Current Stock Amount</label>
                   <input
                     type="number"
+                    min="0"
+                    step="any"
                     value={editStock}
-                    onChange={(e) => setEditStock(Number(e.target.value))}
+                    onFocus={(e) => { if (e.target.value === '0') setEditStock(''); }}
+                    onBlur={(e) => { if (!e.target.value.trim()) setEditStock('0'); }}
+                    onChange={(e) => setEditStock(e.target.value)}
                     className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary"
+                    placeholder="0"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Warning Threshold</label>
                   <input
                     type="number"
+                    min="0"
+                    step="any"
                     value={editThreshold}
-                    onChange={(e) => setEditThreshold(Number(e.target.value))}
+                    onFocus={(e) => { if (e.target.value === '0') setEditThreshold(''); }}
+                    onBlur={(e) => { if (!e.target.value.trim()) setEditThreshold('0'); }}
+                    onChange={(e) => setEditThreshold(e.target.value)}
                     className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary"
+                    placeholder="0"
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Unit Cost (Rs.)</label>
-                <input type="number" min="0" step="0.01" value={editCost} onChange={(e) => setEditCost(Number(e.target.value))} className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary" />
+                <input 
+                  type="number" 
+                  min="0" 
+                  step="any" 
+                  value={editCost} 
+                  onFocus={(e) => { if (e.target.value === '0') setEditCost(''); }}
+                  onBlur={(e) => { if (!e.target.value.trim()) setEditCost('0'); }}
+                  onChange={(e) => setEditCost(e.target.value)} 
+                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary" 
+                  placeholder="0"
+                />
               </div>
             </div>
 
@@ -666,9 +691,13 @@ export default function InventoryScreen({
                   <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Starting Stock</label>
                   <input
                     type="number"
-                    required
+                    min="0"
+                    step="any"
                     value={newItemStock}
-                    onChange={(e) => setNewItemStock(Number(e.target.value))}
+                    onFocus={(e) => { if (e.target.value === '0') setNewItemStock(''); }}
+                    onBlur={(e) => { if (!e.target.value.trim()) setNewItemStock('0'); }}
+                    onChange={(e) => setNewItemStock(e.target.value)}
+                    placeholder="0"
                     className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -676,16 +705,30 @@ export default function InventoryScreen({
                   <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Warning Threshold</label>
                   <input
                     type="number"
-                    required
+                    min="0"
+                    step="any"
                     value={newItemThreshold}
-                    onChange={(e) => setNewItemThreshold(Number(e.target.value))}
+                    onFocus={(e) => { if (e.target.value === '0') setNewItemThreshold(''); }}
+                    onBlur={(e) => { if (!e.target.value.trim()) setNewItemThreshold('0'); }}
+                    onChange={(e) => setNewItemThreshold(e.target.value)}
+                    placeholder="0"
                     className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Unit Cost (Rs.)</label>
-                <input type="number" required min="0" step="0.01" value={newItemCost} onChange={(e) => setNewItemCost(Number(e.target.value))} placeholder="Cost per kg, piece, litre..." className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary" />
+                <input 
+                  type="number" 
+                  min="0" 
+                  step="any" 
+                  value={newItemCost} 
+                  onFocus={(e) => { if (e.target.value === '0') setNewItemCost(''); }}
+                  onBlur={(e) => { if (!e.target.value.trim()) setNewItemCost('0'); }}
+                  onChange={(e) => setNewItemCost(e.target.value)} 
+                  placeholder="Cost per kg, piece, litre..." 
+                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary" 
+                />
               </div>
 
               <div>
@@ -713,8 +756,13 @@ export default function InventoryScreen({
         </div>
       )}
 
-      {/* Confirmation Dialog for Safe Deletion */}
-      <ConfirmModal dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
+      {/* CONFIRM DIALOG */}
+      {confirmDialog && (
+        <ConfirmModal
+          dialog={confirmDialog}
+          onClose={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   );
 }

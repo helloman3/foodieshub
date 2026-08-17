@@ -33,8 +33,6 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
   const [selectedRole, setSelectedRole] = useState<Role>('Waiter');
   const [staffName, setStaffName] = useState<string>(getRememberedStaffName);
   const [pin, setPin] = useState<string>('');
-  const [quickPin, setQuickPin] = useState('');
-  const [isQuickSignIn, setIsQuickSignIn] = useState(false);
   const [setupToken, setSetupToken] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
@@ -94,26 +92,6 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
     if (pin.length > 0) {
       setPin(pin.slice(0, -1));
     }
-  };
-
-  const handleQuickSignIn = (event: React.FormEvent) => {
-    event.preventDefault();
-    setErrorMessage('');
-    const account = effectiveStaff.find(
-      (member) =>
-        member.active &&
-        (normalizeStaffName(member.name) === normalizeStaffName(staffName) || member.pin === quickPin) &&
-        member.pin === quickPin
-    );
-    if (!account) {
-      setErrorMessage('Staff name or PIN is incorrect.');
-      setQuickPin('');
-      return;
-    }
-    const signedInName = staffName.trim() || account.name;
-    rememberStaffName(signedInName);
-    setSuccessMessage(`Signing in ${signedInName}...`);
-    scheduleLogin({ name: signedInName, role: account.role, avatar: getProfileAvatar(signedInName) }, 500);
   };
 
   const handleCreateMasterAdmin = (e: React.FormEvent) => {
@@ -296,200 +274,165 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
             </form>
           ) : (
             /* ======================================================== */
-            /* SCENARIO B: NORMAL STAFF LOGIN */
+            /* SCENARIO B: NORMAL ROLE-BASED STAFF LOGIN */
             /* ======================================================== */
             <>
               {/* Login Header */}
               <div className="text-center pt-1">
                 <h2 className="font-display text-2xl md:text-3xl font-bold text-on-background mb-1 tracking-tight leading-snug">Staff Login</h2>
-                <p className="text-xs text-on-surface-variant">Select your role, pick your name, and input your PIN.</p>
+                <p className="text-xs text-on-surface-variant">Select your role, tap your name, and enter your PIN.</p>
               </div>
 
-              {effectiveStaff.length > 0 && (
-                <button type="button" onClick={() => { setIsQuickSignIn((enabled) => !enabled); setErrorMessage(''); setSuccessMessage(''); }} className="text-xs font-bold text-primary hover:underline self-center cursor-pointer">
-                  {isQuickSignIn ? 'Use role-based sign in' : 'Quick sign in'}
+              {/* Role Selector (Bento-style chips) */}
+              <div id="login-role-selector" className="flex p-1 bg-surface-container-high rounded-xl gap-1">
+                <button 
+                  type="button"
+                  onClick={() => handleRoleChange('Waiter')}
+                  className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
+                    selectedRole === 'Waiter' 
+                      ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
+                      : 'hover:bg-surface-container-lowest/50'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-xl ${selectedRole === 'Waiter' ? 'text-primary' : 'text-on-surface-variant'}`} style={{ fontVariationSettings: "'FILL' 1" }}>room_service</span>
+                  <span className={`text-xs font-semibold ${selectedRole === 'Waiter' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Waiter</span>
                 </button>
-              )}
 
-              {!isQuickSignIn && (
-                <>
-                  {/* Role Selector (Bento-style chips) */}
-                  <div id="login-role-selector" className="flex p-1 bg-surface-container-high rounded-xl gap-1">
-                    <button 
-                      type="button"
-                      onClick={() => handleRoleChange('Waiter')}
-                      className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
-                        selectedRole === 'Waiter' 
-                          ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
-                          : 'hover:bg-surface-container-lowest/50'
-                      }`}
-                    >
-                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Waiter' ? 'text-primary' : 'text-on-surface-variant'}`} style={{ fontVariationSettings: "'FILL' 1" }}>room_service</span>
-                      <span className={`text-xs font-semibold ${selectedRole === 'Waiter' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Waiter</span>
-                    </button>
+                <button type="button" onClick={() => handleRoleChange('Accountant')} className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${selectedRole === 'Accountant' ? 'bg-surface-container-lowest shadow-sm border border-border-light' : 'hover:bg-surface-container-lowest/50'}`}>
+                  <span className={`material-symbols-outlined text-xl ${selectedRole === 'Accountant' ? 'text-primary' : 'text-on-surface-variant'}`}>calculate</span>
+                  <span className={`text-xs font-semibold ${selectedRole === 'Accountant' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Accountant</span>
+                </button>
 
-                    <button type="button" onClick={() => handleRoleChange('Accountant')} className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${selectedRole === 'Accountant' ? 'bg-surface-container-lowest shadow-sm border border-border-light' : 'hover:bg-surface-container-lowest/50'}`}>
-                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Accountant' ? 'text-primary' : 'text-on-surface-variant'}`}>calculate</span>
-                      <span className={`text-xs font-semibold ${selectedRole === 'Accountant' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Accountant</span>
-                    </button>
+                <button 
+                  type="button"
+                  onClick={() => handleRoleChange('Chef')}
+                  className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
+                    selectedRole === 'Chef' 
+                      ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
+                      : 'hover:bg-surface-container-lowest/50'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-xl ${selectedRole === 'Chef' ? 'text-primary' : 'text-on-surface-variant'}`}>skillet</span>
+                  <span className={`text-xs font-semibold ${selectedRole === 'Chef' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Chef</span>
+                </button>
 
-                    <button 
-                      type="button"
-                      onClick={() => handleRoleChange('Chef')}
-                      className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
-                        selectedRole === 'Chef' 
-                          ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
-                          : 'hover:bg-surface-container-lowest/50'
-                      }`}
-                    >
-                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Chef' ? 'text-primary' : 'text-on-surface-variant'}`}>skillet</span>
-                      <span className={`text-xs font-semibold ${selectedRole === 'Chef' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Chef</span>
-                    </button>
+                <button 
+                  type="button"
+                  onClick={() => handleRoleChange('Admin')}
+                  className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
+                    selectedRole === 'Admin' 
+                      ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
+                      : 'hover:bg-surface-container-lowest/50'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-xl ${selectedRole === 'Admin' ? 'text-primary' : 'text-on-surface-variant'}`}>admin_panel_settings</span>
+                  <span className={`text-xs font-semibold ${selectedRole === 'Admin' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Admin</span>
+                </button>
+              </div>
 
-                    <button 
-                      type="button"
-                      onClick={() => handleRoleChange('Admin')}
-                      className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
-                        selectedRole === 'Admin' 
-                          ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
-                          : 'hover:bg-surface-container-lowest/50'
-                      }`}
-                    >
-                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Admin' ? 'text-primary' : 'text-on-surface-variant'}`}>admin_panel_settings</span>
-                      <span className={`text-xs font-semibold ${selectedRole === 'Admin' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Admin</span>
-                    </button>
-                  </div>
-
-                  {/* Staff Name Input Section */}
-                  <div id="login-staff-name" className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider flex justify-between items-center" htmlFor="staff-name-input">
-                      <span>Staff Name</span>
-                      <span className="text-[10px] text-on-surface-variant font-normal">{roleStaffList.length} registered</span>
-                    </label>
-                    <div className="relative flex items-center">
-                      <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-lg">badge</span>
-                      <input 
-                        id="staff-name-input"
-                        type="text"
-                        value={staffName}
-                        onChange={(e) => setStaffName(e.target.value)}
-                        placeholder="Enter staff name..."
-                        autoComplete="name"
-                        className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-on-surface outline-none transition-all"
-                      />
-                    </div>
-
-                    {/* Quick staff chips for the selected role */}
-                    {roleStaffList.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-0.5">
-                        {roleStaffList.map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              setStaffName(m.name);
-                              setPin('');
-                              setErrorMessage('');
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                              normalizeStaffName(staffName) === normalizeStaffName(m.name)
-                                ? 'bg-primary text-on-primary shadow-xs'
-                                : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
-                            }`}
-                          >
-                            <span>{m.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Feedback Messages */}
-                  {errorMessage && (
-                    <div className="bg-error-container text-on-error-container text-xs p-3 rounded-lg text-center font-medium border border-error/20">
-                      {errorMessage}
-                    </div>
-                  )}
-                  {successMessage && (
-                    <div className="bg-primary-container text-on-primary-container text-xs p-3 rounded-lg text-center font-medium border border-primary/20">
-                      {successMessage}
-                    </div>
-                  )}
-
-                  {/* PIN Entry Display */}
-                  <div id="login-pin-display" className="flex justify-center gap-4 py-1">
-                    {[0, 1, 2, 3].map((index) => (
-                      <div 
-                        key={index}
-                        className={`w-3.5 h-3.5 rounded-full transition-all duration-150 ${
-                          index < pin.length 
-                            ? 'bg-primary scale-110' 
-                            : 'bg-surface-variant border border-outline-variant'
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Number Grid (PIN Pad) */}
-                  <div id="login-pinpad" className="grid grid-cols-3 gap-x-6 gap-y-3 px-4">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
-                      <button 
-                        key={num}
-                        type="button"
-                        onClick={() => handleKeyPress(num)}
-                        className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-primary active:text-on-primary font-display font-semibold text-lg text-on-surface transition-colors flex items-center justify-center shadow-xs cursor-pointer"
-                      >
-                        {num}
-                      </button>
-                    ))}
-
-                    <div className="flex items-center justify-center">
-                      <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">POS</span>
-                    </div>
-
-                    <button 
-                      type="button"
-                      onClick={() => handleKeyPress('0')}
-                      className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-primary active:text-on-primary font-display font-semibold text-lg text-on-surface transition-colors flex items-center justify-center shadow-xs cursor-pointer"
-                    >
-                      0
-                    </button>
-
-                    <button 
-                      type="button"
-                      onClick={handleBackspace}
-                      className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-error-container font-semibold text-on-surface-variant transition-colors flex items-center justify-center shadow-xs cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-xl">backspace</span>
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {/* Quick Sign-In Form */}
-              {isQuickSignIn && (
-                <form onSubmit={handleQuickSignIn} className="flex flex-col gap-3">
-                  <input
+              {/* Staff Name Input Section */}
+              <div id="login-staff-name" className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider flex justify-between items-center" htmlFor="staff-name-input">
+                  <span>Staff Name</span>
+                  <span className="text-[10px] text-on-surface-variant font-normal">{roleStaffList.length} registered</span>
+                </label>
+                <div className="relative flex items-center">
+                  <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-lg">badge</span>
+                  <input 
+                    id="staff-name-input"
                     type="text"
                     value={staffName}
                     onChange={(e) => setStaffName(e.target.value)}
-                    placeholder="Staff name"
-                    className="input-field"
-                    required
+                    placeholder="Enter staff name..."
+                    autoComplete="name"
+                    className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-on-surface outline-none transition-all"
                   />
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={quickPin}
-                    onChange={(e) => setQuickPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="4-digit PIN"
-                    className="input-field"
-                    required
-                  />
-                  <button type="submit" className="primary-action cursor-pointer">Sign in</button>
-                </form>
+                </div>
+
+                {/* Quick staff chips for the selected role */}
+                {roleStaffList.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {roleStaffList.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setStaffName(m.name);
+                          setPin('');
+                          setErrorMessage('');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          normalizeStaffName(staffName) === normalizeStaffName(m.name)
+                            ? 'bg-primary text-on-primary shadow-xs'
+                            : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
+                        }`}
+                      >
+                        <span>{m.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Feedback Messages */}
+              {errorMessage && (
+                <div className="bg-error-container text-on-error-container text-xs p-3 rounded-lg text-center font-medium border border-error/20">
+                  {errorMessage}
+                </div>
               )}
+              {successMessage && (
+                <div className="bg-primary-container text-on-primary-container text-xs p-3 rounded-lg text-center font-medium border border-primary/20">
+                  {successMessage}
+                </div>
+              )}
+
+              {/* PIN Entry Display */}
+              <div id="login-pin-display" className="flex justify-center gap-4 py-1">
+                {[0, 1, 2, 3].map((index) => (
+                  <div 
+                    key={index}
+                    className={`w-3.5 h-3.5 rounded-full transition-all duration-150 ${
+                      index < pin.length 
+                        ? 'bg-primary scale-110' 
+                        : 'bg-surface-variant border border-outline-variant'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Number Grid (PIN Pad) */}
+              <div id="login-pinpad" className="grid grid-cols-3 gap-x-6 gap-y-3 px-4">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                  <button 
+                    key={num}
+                    type="button"
+                    onClick={() => handleKeyPress(num)}
+                    className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-primary active:text-on-primary font-display font-semibold text-lg text-on-surface transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                  >
+                    {num}
+                  </button>
+                ))}
+
+                <div className="flex items-center justify-center">
+                  <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">POS</span>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={() => handleKeyPress('0')}
+                  className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-primary active:text-on-primary font-display font-semibold text-lg text-on-surface transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                >
+                  0
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={handleBackspace}
+                  className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-error-container font-semibold text-on-surface-variant transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-xl">backspace</span>
+                </button>
+              </div>
             </>
           )}
         </div>

@@ -92,19 +92,21 @@ export default function BottomNavBar({ currentUser, activeScreen, onNavigate }: 
         <span className="text-[11px] mt-0.5 font-medium">Orders</span>
       </button>
 
-      {/* Kitchen Button */}
-      <button
-        type="button"
-        onClick={() => onNavigate('kitchen')}
-        className={`flex min-w-0 flex-1 flex-col items-center justify-center px-1 sm:px-4 py-1.5 rounded-full active:scale-95 transition-all cursor-pointer ${
-          activeScreen === 'kitchen'
-            ? 'bg-primary-container text-on-primary-container font-semibold'
-            : 'text-on-surface-variant hover:text-primary'
-        }`}
-      >
-        <span className={`material-symbols-outlined text-2xl ${activeScreen === 'kitchen' ? 'fill' : ''}`}>skillet</span>
-        <span className="text-[11px] mt-0.5 font-medium">{currentUser.role === 'Waiter' ? 'Ready' : 'Kitchen'}</span>
-      </button>
+      {/* Kitchen Button (Admin only in this view) */}
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => onNavigate('kitchen')}
+          className={`flex min-w-0 flex-1 flex-col items-center justify-center px-1 sm:px-4 py-1.5 rounded-full active:scale-95 transition-all cursor-pointer ${
+            activeScreen === 'kitchen'
+              ? 'bg-primary-container text-on-primary-container font-semibold'
+              : 'text-on-surface-variant hover:text-primary'
+          }`}
+        >
+          <span className={`material-symbols-outlined text-2xl ${activeScreen === 'kitchen' ? 'fill' : ''}`}>skillet</span>
+          <span className="text-[11px] mt-0.5 font-medium">Kitchen</span>
+        </button>
+      )}
 
       {/* Billing Button */}
       <button
