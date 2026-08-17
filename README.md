@@ -1,6 +1,6 @@
-# 🍽️ FoodieHub POS — Modern Restaurant & Bar Management System
+# 🍽️ FoodieHub — Modern Restaurant & Bar POS Web Application
 
-**FoodieHub** is a high-performance, responsive Point-of-Sale (POS) and Restaurant Operating System tailored for restaurants, cafes, and bars. Built with **React**, **TypeScript**, and **Tailwind CSS**, it features real-time local network synchronization, 1-page thermal KOT/BOT and bill printing, CSV bulk import/export, and complete role-based workflow isolation.
+**FoodieHub** is a high-performance, responsive Point-of-Sale (POS) Web Application and Progressive Web App (PWA) tailored for restaurants, cafes, and bars. Built with **React**, **TypeScript**, and **Tailwind CSS**, it features real-time local network synchronization, 1-page thermal KOT/BOT and bill printing, CSV bulk import/export, and complete role-based workflow isolation across mobile, tablet, and desktop web browsers.
 
 ---
 
