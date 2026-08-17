@@ -654,7 +654,7 @@ export default function App() {
       destinationScreen = 'kitchen';
     } else if (currentUser?.role === 'Accountant' && destinationScreen !== 'billing') {
       destinationScreen = 'billing';
-    } else if (currentUser?.role === 'Waiter' && destinationScreen === 'inventory') {
+    } else if (currentUser?.role === 'Waiter' && (destinationScreen === 'inventory' || destinationScreen === 'kitchen' || destinationScreen === 'admin')) {
       destinationScreen = 'floorplan';
     }
 
@@ -681,7 +681,7 @@ export default function App() {
         setTimeout(() => setHighlightedOrderId(null), 3500);
       }
       if (toast.title.toLowerCase().includes('ready') || toast.title.toLowerCase().includes('kitchen')) {
-        setActiveScreen(currentUser?.role === 'Chef' ? 'kitchen' : currentUser?.role === 'Waiter' ? 'kitchen' : 'floorplan');
+        setActiveScreen(currentUser?.role === 'Chef' ? 'kitchen' : currentUser?.role === 'Accountant' ? 'billing' : 'floorplan');
       }
     }
     setToasts((curr) => curr.filter((t) => t.id !== toast.id));
@@ -1349,7 +1349,7 @@ export default function App() {
       case 'menu': return 'Order Intake';
       case 'billing': return 'Payments Portal';
       case 'inventory': return 'Stock Inventory';
-      case 'kitchen': return currentUser.role === 'Waiter' ? 'Ready for Service' : 'Kitchen Queue';
+      case 'kitchen': return 'Kitchen Queue';
       case 'admin': return 'Administration';
       case 'profile': return 'Staff Profile & Shift Dashboard';
       default: return 'FoodieHub';
