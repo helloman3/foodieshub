@@ -1,4 +1,4 @@
-import { Table, InventoryItem } from './types';
+import { Table, InventoryItem, StaffAccount } from './types';
 import { MENU_CATALOG } from './menuCatalog';
 
 export const INITIAL_TABLES: Table[] = [
@@ -18,7 +18,19 @@ export const INITIAL_MENU = MENU_CATALOG;
 // Empty clean inventory
 export const INITIAL_INVENTORY: InventoryItem[] = [];
 
-// Only the Admin account is preserved
-export const INITIAL_STAFF = [
-  { id: 'staff-admin-01', name: 'Admin', role: 'Admin' as const, pin: '1234', active: true, createdAt: '2026-08-16T00:00:00.000Z' },
-];
+// Initialize master staff from environment variables (.env.local) if configured
+const envAdminName = (import.meta.env.VITE_INITIAL_ADMIN_NAME as string | undefined)?.trim() || 'Admin';
+const envAdminPin = (import.meta.env.VITE_INITIAL_ADMIN_PIN as string | undefined)?.trim() || '';
+
+export const INITIAL_STAFF: StaffAccount[] = envAdminPin
+  ? [
+      {
+        id: 'staff-admin-01',
+        name: envAdminName,
+        role: 'Admin' as const,
+        pin: envAdminPin,
+        active: true,
+        createdAt: '2026-08-16T00:00:00.000Z',
+      },
+    ]
+  : [];

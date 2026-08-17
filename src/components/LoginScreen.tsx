@@ -39,9 +39,13 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
 
+  // First-boot master admin setup states
+  const [initialAdminName, setInitialAdminName] = useState('Admin');
+  const [initialAdminPinInput, setInitialAdminPinInput] = useState('');
+
   const loginTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialAdminToken = import.meta.env.VITE_INITIAL_ADMIN_TOKEN as string | undefined;
-  const initialAdminPin = import.meta.env.VITE_INITIAL_ADMIN_PIN as string | undefined;
+
   useEffect(() => {
     return () => {
       if (loginTimeoutRef.current) {
@@ -59,17 +63,13 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
     }, delayMs);
   };
 
-  const effectiveStaff = staff && staff.length > 0 ? staff : [
-    { id: 'staff-admin-01', name: 'Admin', role: 'Admin' as Role, pin: '1234', active: true, createdAt: '2026-08-16T00:00:00.000Z' },
-  ];
-
+  const effectiveStaff = staff || [];
   const roleStaffList = effectiveStaff.filter((m) => m.active && m.role === selectedRole);
 
   const handleRoleChange = (role: Role) => {
     setSelectedRole(role);
     setPin('');
     setErrorMessage('');
-    // If there is only one staff member for this role, auto-select their name
     const matching = effectiveStaff.filter((m) => m.active && m.role === role);
     if (matching.length === 1) {
       setStaffName(matching[0].name);
@@ -116,6 +116,37 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
     scheduleLogin({ name: signedInName, role: account.role, avatar: getProfileAvatar(signedInName) }, 500);
   };
 
+  const handleCreateMasterAdmin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    const name = initialAdminName.trim() || 'Admin';
+    const pinVal = initialAdminPinInput.trim();
+
+    if (pinVal.length !== 4 || !/^\d{4}$/.test(pinVal)) {
+      setErrorMessage('Master PIN must be exactly 4 digits (e.g. 1234).');
+      return;
+    }
+
+    if (initialAdminToken && setupToken.trim() !== initialAdminToken) {
+      setErrorMessage('Administrator setup token is invalid.');
+      return;
+    }
+
+    const newAdmin: StaffAccount = {
+      id: `staff-admin-${Date.now()}`,
+      name,
+      role: 'Admin',
+      pin: pinVal,
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    onCreateStaff(newAdmin);
+    rememberStaffName(name);
+    setSuccessMessage(`Master Admin "${name}" created successfully!`);
+    scheduleLogin({ name, role: 'Admin', avatar: getProfileAvatar(name) }, 600);
+  };
+
   const verifyPin = (enteredPin: string) => {
     const finalName = staffName.trim();
 
@@ -131,16 +162,6 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
       ) || matchingRoleAccounts[0];
     } else {
       account = matchingRoleAccounts[0];
-    }
-
-    if (!account && setupToken && initialAdminToken && setupToken.trim() === initialAdminToken && enteredPin === initialAdminPin && selectedRole === 'Admin') {
-      const adminName = finalName || 'Admin';
-      const newAdmin: StaffAccount = { id: `staff-${Date.now()}`, name: adminName, role: 'Admin', pin: enteredPin, active: true, createdAt: new Date().toISOString() };
-      onCreateStaff(newAdmin);
-      rememberStaffName(adminName);
-      setSuccessMessage(`Signing in ${adminName}...`);
-      scheduleLogin({ name: adminName, role: 'Admin', avatar: getProfileAvatar(adminName) }, 600);
-      return;
     }
 
     if (!account) {
@@ -192,186 +213,285 @@ export default function LoginScreen({ onLoginSuccess, staff, onCreateStaff }: Lo
         </div>
 
         <div className="w-full max-w-[400px] flex flex-col gap-4 py-4">
-          {/* Login Header */}
-          <div className="text-center pt-1">
-            <h2 className="font-display text-2xl md:text-3xl font-bold text-on-background mb-1 tracking-tight leading-snug">Staff Login</h2>
-            <p className="text-xs text-on-surface-variant">Select your role, enter your staff name, and input your PIN.</p>
-          </div>
-
-          {staff.length > 0 && (
-            <button type="button" onClick={() => { setIsQuickSignIn((enabled) => !enabled); setErrorMessage(''); setSuccessMessage(''); }} className="text-xs font-bold text-primary hover:underline self-center">
-              {isQuickSignIn ? 'Use role-based sign in' : 'Quick sign in'}
-            </button>
-          )}
-
-          {staff.length === 0 && (
-            <div className="bg-primary-container/25 border border-primary/20 rounded-xl p-3">
-              <p className="text-xs font-bold text-on-primary-container">Initial administrator setup</p>
-              <p className="text-[11px] text-on-surface-variant mt-1">Use the administrator token configured by the deployment owner. This step appears only once.</p>
-              <input value={setupToken} onChange={(event) => setSetupToken(event.target.value)} placeholder="Administrator token" className="w-full mt-2 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-xs outline-none focus:border-primary" autoComplete="off" />
-            </div>
-          )}
-
-          {!isQuickSignIn && <>
-          {/* Role Selector (Bento-style chips) */}
-          <div id="login-role-selector" className="flex p-1 bg-surface-container-high rounded-xl gap-1">
-            <button 
-              type="button"
-              onClick={() => handleRoleChange('Waiter')}
-              className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
-                selectedRole === 'Waiter' 
-                  ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
-                  : 'hover:bg-surface-container-lowest/50'
-              }`}
-            >
-              <span className={`material-symbols-outlined text-xl ${selectedRole === 'Waiter' ? 'text-primary' : 'text-on-surface-variant'}`} style={{ fontVariationSettings: "'FILL' 1" }}>room_service</span>
-              <span className={`text-xs font-semibold ${selectedRole === 'Waiter' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Waiter</span>
-            </button>
-
-            <button type="button" onClick={() => handleRoleChange('Accountant')} className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${selectedRole === 'Accountant' ? 'bg-surface-container-lowest shadow-sm border border-border-light' : 'hover:bg-surface-container-lowest/50'}`}>
-              <span className={`material-symbols-outlined text-xl ${selectedRole === 'Accountant' ? 'text-primary' : 'text-on-surface-variant'}`}>calculate</span>
-              <span className={`text-xs font-semibold ${selectedRole === 'Accountant' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Accountant</span>
-            </button>
-
-            <button 
-              type="button"
-              onClick={() => handleRoleChange('Chef')}
-              className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
-                selectedRole === 'Chef' 
-                  ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
-                  : 'hover:bg-surface-container-lowest/50'
-              }`}
-            >
-              <span className={`material-symbols-outlined text-xl ${selectedRole === 'Chef' ? 'text-primary' : 'text-on-surface-variant'}`}>skillet</span>
-              <span className={`text-xs font-semibold ${selectedRole === 'Chef' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Chef</span>
-            </button>
-
-            <button 
-              type="button"
-              onClick={() => handleRoleChange('Admin')}
-              className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
-                selectedRole === 'Admin' 
-                  ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
-                  : 'hover:bg-surface-container-lowest/50'
-              }`}
-            >
-              <span className={`material-symbols-outlined text-xl ${selectedRole === 'Admin' ? 'text-primary' : 'text-on-surface-variant'}`}>admin_panel_settings</span>
-              <span className={`text-xs font-semibold ${selectedRole === 'Admin' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Admin</span>
-            </button>
-          </div>
-
-          {/* Staff Name Input Section */}
-          <div id="login-staff-name" className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider flex justify-between items-center" htmlFor="staff-name-input">
-              <span>Staff Name</span>
-              <span className="text-[10px] text-on-surface-variant font-normal">Edit or select</span>
-            </label>
-            <div className="relative flex items-center">
-              <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-lg">badge</span>
-              <input 
-                id="staff-name-input"
-                type="text"
-                value={staffName}
-                onChange={(e) => setStaffName(e.target.value)}
-                placeholder="Enter staff name..."
-                autoComplete="name"
-                className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-on-surface outline-none transition-all"
-              />
-            </div>
-
-            {/* Quick staff chips for the selected role */}
-            {roleStaffList.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-0.5">
-                {roleStaffList.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      setStaffName(m.name);
-                      setPin('');
-                      setErrorMessage('');
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      normalizeStaffName(staffName) === normalizeStaffName(m.name)
-                        ? 'bg-primary text-on-primary shadow-xs'
-                        : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
-                    }`}
-                  >
-                    <span>{m.name}</span>
-                  </button>
-                ))}
+          {/* ======================================================== */}
+          {/* SCENARIO A: FIRST-BOOT MASTER ADMIN PROVISIONING */}
+          {/* ======================================================== */}
+          {effectiveStaff.length === 0 ? (
+            <form onSubmit={handleCreateMasterAdmin} className="flex flex-col gap-4 bg-surface-container-lowest border border-border-light rounded-3xl p-6 shadow-sm">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-2">
+                  <span className="material-symbols-outlined text-2xl">admin_panel_settings</span>
+                </div>
+                <h2 className="font-display text-2xl font-bold text-on-background">Initialize Master Admin</h2>
+                <p className="text-xs text-on-surface-variant mt-1">No staff accounts found. Create your Master Admin account to launch the POS.</p>
               </div>
-            )}
-          </div>
 
-          {/* Feedback Messages */}
-          {errorMessage && (
-            <div className="bg-error-container text-on-error-container text-xs p-3 rounded-lg text-center font-medium border border-error/20">
-              {errorMessage}
-            </div>
-          )}
-          {successMessage && (
-            <div className="bg-primary-container text-on-primary-container text-xs p-3 rounded-lg text-center font-medium border border-primary/20">
-              {successMessage}
-            </div>
-          )}
+              {/* Feedback Messages */}
+              {errorMessage && (
+                <div className="bg-error-container text-on-error-container text-xs p-3 rounded-xl text-center font-medium border border-error/20">
+                  {errorMessage}
+                </div>
+              )}
+              {successMessage && (
+                <div className="bg-primary-container text-on-primary-container text-xs p-3 rounded-xl text-center font-medium border border-primary/20">
+                  {successMessage}
+                </div>
+              )}
 
-          {/* PIN Entry Display */}
-          <div id="login-pin-display" className="flex justify-center gap-4 py-1">
-            {[0, 1, 2, 3].map((index) => (
-              <div 
-                key={index}
-                className={`w-3.5 h-3.5 rounded-full transition-all duration-150 ${
-                  index < pin.length 
-                    ? 'bg-primary scale-110' 
-                    : 'bg-surface-variant border border-outline-variant'
-                }`}
-              />
-            ))}
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider" htmlFor="init-admin-name">
+                  Admin Full Name
+                </label>
+                <input
+                  id="init-admin-name"
+                  type="text"
+                  value={initialAdminName}
+                  onChange={(e) => setInitialAdminName(e.target.value)}
+                  placeholder="e.g. Alex (or Admin)"
+                  className="input-field"
+                  required
+                />
+              </div>
 
-          {/* Number Grid (PIN Pad) */}
-          <div id="login-pinpad" className="grid grid-cols-3 gap-x-6 gap-y-3 px-4">
-            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
-              <button 
-                key={num}
-                type="button"
-                onClick={() => handleKeyPress(num)}
-                className="w-14 h-14 mx-auto rounded-full bg-surface-container flex items-center justify-center hover:bg-secondary-container active:scale-95 transition-all duration-150 text-xl font-semibold text-on-background shadow-sm border border-transparent hover:border-outline-variant cursor-pointer"
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider" htmlFor="init-admin-pin">
+                  Set 4-Digit Security PIN
+                </label>
+                <input
+                  id="init-admin-pin"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={initialAdminPinInput}
+                  onChange={(e) => setInitialAdminPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="e.g. 1234"
+                  className="input-field text-center font-mono text-base tracking-widest"
+                  required
+                />
+              </div>
+
+              {initialAdminToken && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider" htmlFor="init-admin-token">
+                    Administrator Setup Token (.env)
+                  </label>
+                  <input
+                    id="init-admin-token"
+                    type="password"
+                    value={setupToken}
+                    onChange={(e) => setSetupToken(e.target.value)}
+                    placeholder="Enter token from .env.local"
+                    className="input-field"
+                    required
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-primary text-on-primary py-3.5 rounded-xl text-xs font-bold hover:bg-surface-tint transition-all shadow-sm cursor-pointer mt-2"
               >
-                {num}
+                Provision Master Admin & Launch
               </button>
-            ))}
-            {/* Row 4 */}
-            <div className="w-14 h-14" /> {/* Empty space */}
-            <button 
-              type="button"
-              onClick={() => handleKeyPress('0')}
-              className="w-14 h-14 mx-auto rounded-full bg-surface-container flex items-center justify-center hover:bg-secondary-container active:scale-95 transition-all duration-150 text-xl font-semibold text-on-background shadow-sm border border-transparent hover:border-outline-variant cursor-pointer"
-            >
-              0
-            </button>
-            <button 
-              type="button"
-              onClick={handleBackspace}
-              className="w-14 h-14 mx-auto rounded-full flex items-center justify-center text-on-surface-variant hover:text-error active:scale-95 transition-all duration-150 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[28px]">backspace</span>
-            </button>
-          </div>
-          </>}
-
-          {isQuickSignIn && (
-            <form onSubmit={handleQuickSignIn} className="bg-surface-container-low p-4 rounded-2xl border border-border-light flex flex-col gap-3">
-              <div><h3 className="font-display font-bold text-base text-on-surface">Quick sign in</h3><p className="text-xs text-on-surface-variant mt-1">Use your staff name and PIN. Your role is loaded automatically.</p></div>
-              <input value={staffName} onChange={(event) => setStaffName(event.target.value)} placeholder="Staff name" className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-3 py-3 text-sm outline-none focus:border-primary" autoComplete="name" autoFocus required />
-              <input value={quickPin} onChange={(event) => setQuickPin(event.target.value.replace(/\D/g, '').slice(0, 4))} type="password" inputMode="numeric" placeholder="4-digit PIN" className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-3 py-3 text-sm tracking-[0.4em] outline-none focus:border-primary" required />
-              {errorMessage && <div className="bg-error-container text-on-error-container text-xs p-3 rounded-lg text-center font-medium">{errorMessage}</div>}
-              {successMessage && <div className="bg-primary-container text-on-primary-container text-xs p-3 rounded-lg text-center font-medium">{successMessage}</div>}
-              <button type="submit" className="primary-action w-full">Sign in</button>
             </form>
-          )}
+          ) : (
+            /* ======================================================== */
+            /* SCENARIO B: NORMAL STAFF LOGIN */
+            /* ======================================================== */
+            <>
+              {/* Login Header */}
+              <div className="text-center pt-1">
+                <h2 className="font-display text-2xl md:text-3xl font-bold text-on-background mb-1 tracking-tight leading-snug">Staff Login</h2>
+                <p className="text-xs text-on-surface-variant">Select your role, pick your name, and input your PIN.</p>
+              </div>
 
+              {effectiveStaff.length > 0 && (
+                <button type="button" onClick={() => { setIsQuickSignIn((enabled) => !enabled); setErrorMessage(''); setSuccessMessage(''); }} className="text-xs font-bold text-primary hover:underline self-center cursor-pointer">
+                  {isQuickSignIn ? 'Use role-based sign in' : 'Quick sign in'}
+                </button>
+              )}
+
+              {!isQuickSignIn && (
+                <>
+                  {/* Role Selector (Bento-style chips) */}
+                  <div id="login-role-selector" className="flex p-1 bg-surface-container-high rounded-xl gap-1">
+                    <button 
+                      type="button"
+                      onClick={() => handleRoleChange('Waiter')}
+                      className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
+                        selectedRole === 'Waiter' 
+                          ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
+                          : 'hover:bg-surface-container-lowest/50'
+                      }`}
+                    >
+                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Waiter' ? 'text-primary' : 'text-on-surface-variant'}`} style={{ fontVariationSettings: "'FILL' 1" }}>room_service</span>
+                      <span className={`text-xs font-semibold ${selectedRole === 'Waiter' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Waiter</span>
+                    </button>
+
+                    <button type="button" onClick={() => handleRoleChange('Accountant')} className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${selectedRole === 'Accountant' ? 'bg-surface-container-lowest shadow-sm border border-border-light' : 'hover:bg-surface-container-lowest/50'}`}>
+                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Accountant' ? 'text-primary' : 'text-on-surface-variant'}`}>calculate</span>
+                      <span className={`text-xs font-semibold ${selectedRole === 'Accountant' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Accountant</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => handleRoleChange('Chef')}
+                      className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
+                        selectedRole === 'Chef' 
+                          ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
+                          : 'hover:bg-surface-container-lowest/50'
+                      }`}
+                    >
+                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Chef' ? 'text-primary' : 'text-on-surface-variant'}`}>skillet</span>
+                      <span className={`text-xs font-semibold ${selectedRole === 'Chef' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Chef</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => handleRoleChange('Admin')}
+                      className={`flex-1 py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer ${
+                        selectedRole === 'Admin' 
+                          ? 'bg-surface-container-lowest shadow-sm border border-border-light' 
+                          : 'hover:bg-surface-container-lowest/50'
+                      }`}
+                    >
+                      <span className={`material-symbols-outlined text-xl ${selectedRole === 'Admin' ? 'text-primary' : 'text-on-surface-variant'}`}>admin_panel_settings</span>
+                      <span className={`text-xs font-semibold ${selectedRole === 'Admin' ? 'text-on-background font-bold' : 'text-on-surface-variant'}`}>Admin</span>
+                    </button>
+                  </div>
+
+                  {/* Staff Name Input Section */}
+                  <div id="login-staff-name" className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider flex justify-between items-center" htmlFor="staff-name-input">
+                      <span>Staff Name</span>
+                      <span className="text-[10px] text-on-surface-variant font-normal">{roleStaffList.length} registered</span>
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-lg">badge</span>
+                      <input 
+                        id="staff-name-input"
+                        type="text"
+                        value={staffName}
+                        onChange={(e) => setStaffName(e.target.value)}
+                        placeholder="Enter staff name..."
+                        autoComplete="name"
+                        className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-on-surface outline-none transition-all"
+                      />
+                    </div>
+
+                    {/* Quick staff chips for the selected role */}
+                    {roleStaffList.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-0.5">
+                        {roleStaffList.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              setStaffName(m.name);
+                              setPin('');
+                              setErrorMessage('');
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                              normalizeStaffName(staffName) === normalizeStaffName(m.name)
+                                ? 'bg-primary text-on-primary shadow-xs'
+                                : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
+                            }`}
+                          >
+                            <span>{m.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Feedback Messages */}
+                  {errorMessage && (
+                    <div className="bg-error-container text-on-error-container text-xs p-3 rounded-lg text-center font-medium border border-error/20">
+                      {errorMessage}
+                    </div>
+                  )}
+                  {successMessage && (
+                    <div className="bg-primary-container text-on-primary-container text-xs p-3 rounded-lg text-center font-medium border border-primary/20">
+                      {successMessage}
+                    </div>
+                  )}
+
+                  {/* PIN Entry Display */}
+                  <div id="login-pin-display" className="flex justify-center gap-4 py-1">
+                    {[0, 1, 2, 3].map((index) => (
+                      <div 
+                        key={index}
+                        className={`w-3.5 h-3.5 rounded-full transition-all duration-150 ${
+                          index < pin.length 
+                            ? 'bg-primary scale-110' 
+                            : 'bg-surface-variant border border-outline-variant'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Number Grid (PIN Pad) */}
+                  <div id="login-pinpad" className="grid grid-cols-3 gap-x-6 gap-y-3 px-4">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                      <button 
+                        key={num}
+                        type="button"
+                        onClick={() => handleKeyPress(num)}
+                        className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-primary active:text-on-primary font-display font-semibold text-lg text-on-surface transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                      >
+                        {num}
+                      </button>
+                    ))}
+
+                    <div className="flex items-center justify-center">
+                      <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">POS</span>
+                    </div>
+
+                    <button 
+                      type="button"
+                      onClick={() => handleKeyPress('0')}
+                      className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-primary active:text-on-primary font-display font-semibold text-lg text-on-surface transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                    >
+                      0
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={handleBackspace}
+                      className="h-12 w-full rounded-2xl bg-surface-container-low hover:bg-surface-container-highest active:bg-error-container font-semibold text-on-surface-variant transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-xl">backspace</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Quick Sign-In Form */}
+              {isQuickSignIn && (
+                <form onSubmit={handleQuickSignIn} className="flex flex-col gap-3">
+                  <input
+                    type="text"
+                    value={staffName}
+                    onChange={(e) => setStaffName(e.target.value)}
+                    placeholder="Staff name"
+                    className="input-field"
+                    required
+                  />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={quickPin}
+                    onChange={(e) => setQuickPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="4-digit PIN"
+                    className="input-field"
+                    required
+                  />
+                  <button type="submit" className="primary-action cursor-pointer">Sign in</button>
+                </form>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

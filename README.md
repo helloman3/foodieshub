@@ -92,15 +92,27 @@ To connect phones, tablets, and other laptops in your restaurant:
 
 ---
 
-## 🔑 Default Sign-In Accounts
+## 🔑 Administrator Setup & Security Configuration
 
-The system starts with a pre-configured Administrator account:
+FoodieHub uses an environment configuration file for secure master administrator provisioning without hardcoded credentials in the repository.
 
-| Role | Default Name | Default PIN | Permissions |
-| :--- | :--- | :--- | :--- |
-| **Admin** | `Admin` | **`1234`** | Full System Access, Staff Management, Revenue Reports, CSV Hub |
+### Step 1: Create your local `.env.local`
+Copy the provided `.env.example` template:
+```bash
+cp .env.example .env.local
+```
 
-*Additional Waiter, Chef, Accountant, and Admin accounts can be created with custom 4-digit PINs directly from the **Administration ➔ Staff & Access** tab.*
+### Step 2: Configure your credentials
+Open `.env.local` and set your desired Master Administrator name and 4-digit PIN:
+```env
+VITE_INITIAL_ADMIN_NAME=Admin
+VITE_INITIAL_ADMIN_PIN=1234
+VITE_INITIAL_ADMIN_TOKEN=my-secret-setup-token
+```
+
+> **Interactive First Launch**: If you launch the application without creating a `.env.local` file, FoodieHub displays an **"Initialize Master Admin"** setup screen on first boot, allowing the restaurant owner to create the Master Admin account and 4-digit PIN directly from the browser.
+
+*Additional Waiter, Chef, Accountant, and Admin accounts can be created with custom 4-digit PINs from the **Administration ➔ Staff & Access** tab.*
 
 ---
 
