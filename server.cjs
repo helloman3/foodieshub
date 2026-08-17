@@ -179,16 +179,9 @@ const server = http.createServer(async (request, response) => {
           sendJson(response, 400, { error: 'Missing value' });
           return;
         }
-        if (!Object.prototype.hasOwnProperty.call(payload, 'expectedVersion') || !Number.isInteger(Number(payload.expectedVersion)) || Number(payload.expectedVersion) < 0) {
-          sendJson(response, 400, { error: 'expectedVersion is required and must be a non-negative integer' });
-          return;
-        }
+
         const currentEntry = state[key];
         const currentVersion = currentEntry?.version ?? 0;
-        if (Number(payload.expectedVersion) !== currentVersion) {
-          sendJson(response, 409, { error: 'State conflict', key, current: currentEntry ?? { value: null, updatedAt: 0, version: 0 } });
-          return;
-        }
         const updatedAt = Date.now();
         const nextEntry = { value: payload.value, updatedAt, version: currentVersion + 1 };
         state[key] = nextEntry;
